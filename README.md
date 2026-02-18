@@ -1,4 +1,7 @@
 # Xpair_system
+
+Python 3.12.12
+
 To run the app:
 
 First clone the repo, install required packages, then run:
