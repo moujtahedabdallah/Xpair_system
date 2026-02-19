@@ -2,17 +2,55 @@ from .database import db
 
 class Person(db.Model):
     __tablename__ = 'person'
-    
-    # This is the line the error is complaining about 
+
+    # Variables
     id = db.Column(db.Integer, primary_key=True) 
-    
-    # Attributes from your Class Diagram [cite: 56-62]
     password = db.Column(db.String(100), nullable=False)
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
     phone = db.Column(db.String(20))
     address = db.Column(db.String(200))
-    
-    # Role to support UC1 for all actors
-    role = db.Column(db.String(20), default='customer')
+    role = db.Column(db.String(20), default='customer')  # Role to support UC1 for all actors
+
+    # Methods
+    def create_profile(self): 
+        db.session.add(self) 
+        db.session.commit() # This basically saves into the database
+
+    def update_password(self, new_password):
+        # Updates user's password
+        self.password = new_password
+        db.session.commit() # This basically saves into the database
+
+    def update_first_name(self, new_first_name):
+        # Updates user's first name
+        self.first_name = new_first_name
+        db.session.commit()
+
+    def update_last_name(self, new_last_name):
+        # Updates user's last name
+        self.last_name = new_last_name
+        db.session.commit()
+
+    def update_email(self, new_email):
+        # Updates user's email address
+        self.email = new_email
+        db.session.commit()
+        
+    def update_phone(self, new_phone):
+        # Updates user's phone number
+        self.phone = new_phone
+        db.session.commit()
+
+    def update_address(self, new_address):
+        # Updates user's address
+        self.address = new_address
+        db.session.commit()
+
+    def authenticate_user(self, inputted_password):
+        # Basically checks if provide password matches the stored one.
+        return self.password == inputted_password
+
+
+
