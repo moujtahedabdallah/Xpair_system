@@ -1,18 +1,17 @@
 from flask import Flask
+from dotenv import load_dotenv
+import os
 from src.database import db
-from src.person import Person # Testing just the parent class for now
+from src.person import Person
+
+load_dotenv()
 
 app = Flask(__name__)
-
-# CONFIGURATION: Replace with your actual Postgres credentials
-# Format: postgresql://username:password@localhost:5432/database_name
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:yourpassword@localhost:5432/xpair_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Initialize the 'General' hub with this specific app
 db.init_app(app)
 
-# THE TEST: This block tries to talk to Postgres and create the table
 with app.app_context():
     try:
         db.create_all()
