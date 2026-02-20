@@ -1,4 +1,5 @@
 from .database import db
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class Person(db.Model):
     __tablename__ = 'person'
@@ -12,7 +13,9 @@ class Person(db.Model):
     phone = db.Column(db.String(20))
     address = db.Column(db.String(200))
     role = db.Column(db.String(20), default='customer')  # Role to support UC1 for all actors
-
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
+    
     # Methods
     def create_profile(self): 
         db.session.add(self) 
@@ -47,10 +50,14 @@ class Person(db.Model):
         # Updates user's address
         self.address = new_address
         db.session.commit()
+    
+    def set_password(self, password):
+        # Hashes the password and stores it securely
+        self.password = generate_password_hash(password)
 
     def authenticate_user(self, inputted_password):
-        # Basically checks if provide password matches the stored one.
-        return self.password == inputted_password
+        # Checks if the provided password matches the stored hashed password
+        return check_password_hash(self.password, inputted_password)
 
 
 

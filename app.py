@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 from src.database import db
 from src.person import Person
+from src.vehicle import Vehicle
 
 load_dotenv()
 
