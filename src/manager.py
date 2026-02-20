@@ -43,7 +43,7 @@ class Manager(Person):
         # Blocks a time slot so it cannot be booked
         from datetime import datetime
         slot = Booking(
-            periodID=0,
+            periodID=None,
             date=start_time.date() if isinstance(start_time, datetime) else start_time,
             start_time=start_time,
             end_time=end_time,

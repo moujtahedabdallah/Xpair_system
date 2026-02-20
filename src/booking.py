@@ -5,7 +5,7 @@ class Booking(db.Model):
 
     # Variables
     bookingID = db.Column(db.Integer, primary_key=True)
-    periodID = db.Column(db.Integer, nullable=False)  # work week identifier
+    periodID = db.Column(db.Integer, nullable=True)  # work week identifier
     date = db.Column(db.Date, nullable=False)
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=False)
