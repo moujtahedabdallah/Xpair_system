@@ -4,6 +4,7 @@ import os
 from src.database import db
 from src.person import Person
 from src.vehicle import Vehicle
+from src.service import Service
 
 load_dotenv()
 
