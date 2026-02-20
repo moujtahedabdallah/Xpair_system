@@ -13,7 +13,10 @@ class Employee(Person):
     position = db.Column(db.String(50), nullable=False)
     salary = db.Column(db.Float, nullable=False)
     working_hours = db.Column(db.Float, nullable=False)
-  
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'employee',
+    }
 
     # Methods
     def submit_availability(self, periodID, day, start_time, end_time):

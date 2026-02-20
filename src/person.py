@@ -16,6 +16,12 @@ class Person(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.now())
     updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
     
+    # The Sorting Hat --> this essentially sorts the different people classes into their specific roles
+    __mapper_args__ = {
+        'polymorphic_identity': 'person',
+        'polymorphic_on': role
+    }
+
     # Methods
     def create_profile(self): 
         db.session.add(self) 

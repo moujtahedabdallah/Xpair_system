@@ -13,6 +13,9 @@ class Customer(Person):
     booking_history = db.Column(db.Text)
     vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.vehicleID'))
 
+    __mapper_args__ = {
+        'polymorphic_identity': 'customer',
+    }
 
     # Methods
     def enter_preferences(self, vehicleID):
