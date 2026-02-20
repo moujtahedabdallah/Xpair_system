@@ -5,6 +5,11 @@ from src.database import db
 from src.person import Person
 from src.vehicle import Vehicle
 from src.service import Service
+from src.booking import Booking
+from src.availability_record import AvailabilityRecord
+from src.customer import Customer
+from src.employee import Employee
+from src.manager import Manager
 
 load_dotenv()
 
@@ -17,7 +22,7 @@ db.init_app(app)
 with app.app_context():
     try:
         db.create_all()
-        print("✅ SUCCESS: The Person model is linked to Postgres!")
+        print(f"✅ SUCCESS: All models are linked to Postgres!")
     except Exception as e:
         print(f"❌ ERROR: Something went wrong: {e}")
 
