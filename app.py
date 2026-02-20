@@ -28,7 +28,8 @@ with app.app_context():
 
 @app.route('/')
 def home():
-    return "<h1>Welcome to Xpair Detailing</h1><p>The system is live and the database is connected!</p>"
+    print("Route hit!")
+    return "<h1>Welcome to Xpair Detailing</h1>"
 
 if __name__ == "__main__":
     app.run(debug=True)
