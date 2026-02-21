@@ -78,16 +78,16 @@ class Customer(Person):
         end_time = startTime + timedelta(minutes=service.service_duration)
 
         booking = Booking(
-            periodID=0,  # assign correct periodID externally if needed
+            customerID=self.customerID,  
+            serviceID=serviceID,        
+            vehicleID=vehicleID,         
             date=startTime.date(),
             start_time=startTime,
             end_time=end_time,
-            is_available=True,
-            is_blocked=False,
-            booking_status='pending',
+            booking_status='pending'
         )
         db.session.add(booking)
-        db.session.commit()
+        db.session.flush()
 
         # Append booking to history
         booking_id_str = str(booking.bookingID)
@@ -96,9 +96,10 @@ class Customer(Person):
             if self.booking_history
             else booking_id_str
         )
+        
         self.vehicle_id = vehicleID
+        
         db.session.commit()
-
         return booking
 
     def manage_booking(self, bookingID):

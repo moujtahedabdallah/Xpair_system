@@ -13,6 +13,12 @@ class Vehicle(db.Model):
     type = db.Column(db.String(20))
     created_at = db.Column(db.DateTime, default=db.func.now())
     updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
+    
+    #Foreign Key
+    customerID = db.Column(db.Integer, db.ForeignKey('customer.customerID'), nullable=False)
+
+    # Relationships for SQLAlchemy
+    owner = db.relationship('Customer', backref='vehicles')
 
     # Methods
     def add_info(self):

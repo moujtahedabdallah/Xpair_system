@@ -12,14 +12,26 @@ class Booking(db.Model):
     is_available = db.Column(db.Boolean, default=True)
     is_blocked = db.Column(db.Boolean, default=False)
     block_reason = db.Column(db.String(200))
+    booking_summary = db.Column(db.String(500))
     booking_status = db.Column(db.String(20), default='pending')  # pending, confirmed, cancelled, completed
-    assigned_employee = db.Column(db.Integer, db.ForeignKey('employee.employeeID'))
     before_images = db.Column(db.String(500))  # file path e.g. '/uploads/bookings/123/before.jpg'
     after_images = db.Column(db.String(500))  # file path e.g. '/uploads/bookings/123/after.jpg'
     job_notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=db.func.now())
     updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
-
+    
+    # Foreign Keys
+    customerID = db.Column(db.Integer, db.ForeignKey('customer.customerID'), nullable=False)
+    serviceID = db.Column(db.Integer, db.ForeignKey('service.serviceID'), nullable=False)
+    vehicleID = db.Column(db.Integer, db.ForeignKey('vehicle.vehicleID'), nullable=False) 
+    assigned_employee = db.Column(db.Integer, db.ForeignKey('employee.employeeID'), nullable=True)
+    
+    # Relationships for SQLAlchemy
+    customer = db.relationship('Customer', backref='bookings')
+    service = db.relationship('Service', backref='bookings')
+    vehicle = db.relationship('Vehicle', backref='bookings')
+    employee = db.relationship('Employee', backref='assigned_jobs')
+    
     # Methods
     def confirm(self):
         # Confirms the booking
@@ -57,3 +69,18 @@ class Booking(db.Model):
         # Saves the file path of after job images e.g. '/uploads/bookings/123/after.jpg'
         self.after_images = file_path
         db.session.commit()
+
+    def generate_booking_summary(self, selected_add_ons=None):
+        # Auto-generates a booking summary
+        service_name = self.service.service_name
+        cust_name = self.customer.first_name
+        car = f"{self.vehicle.year} {self.vehicle.model}"
+
+        summary = service_name
+
+        if selected_add_ons:
+            summary = f"{service_name} with {', '.join(selected_add_ons)}"
+        
+        self.booking_summary = f"{summary} for {cust_name}'s {car}."
+        db.session.commit()
+        return self.booking_summary
