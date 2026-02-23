@@ -17,6 +17,8 @@ load_dotenv()
 
 app = Flask(__name__)
 
+mail = Mail() # added this because I had an error for mail.init_app(app)
+
 # This handles the 'postgres' vs 'postgresql' naming issue automatically
 uri = os.getenv('DATABASE_URL')
 if uri and uri.startswith("postgres://"):
