@@ -11,20 +11,28 @@ class Customer(Person):
     # Variables
     customerID = db.Column(db.Integer, db.ForeignKey('person.id'), primary_key=True)
     booking_history = db.Column(db.Text)
-    #REMOVED: vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.vehicleID'))
 
     __mapper_args__ = {
         'polymorphic_identity': 'customer',
     }
 
     # Methods
-    def enter_preferences(self, vehicleID):
-        # Sets the customer's preferred vehicle
-        vehicle = Vehicle.query.get(vehicleID)
-        if not vehicle:
-            raise ValueError(f"Vehicle with ID {vehicleID} not found.")
-        self.vehicle_id = vehicleID
+    def add_vehicle(self, make, model, year, plate, size = "medium", type = "car"):
+        # Lets customer add a car to their profile
+        added_car = Vehicle(
+            make = make,
+            model = model,
+            year = year,
+            plate = plate,
+            size = size,
+            type = type,
+            customerID=self.customerID  # This links the car to the owner!
+        )
+        db.session.add(added_car)
         db.session.commit()
+        return added_car
+    
+
 
     def view_catalog(self):
         # Returns all available services from the catalog
