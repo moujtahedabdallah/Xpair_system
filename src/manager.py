@@ -10,8 +10,8 @@ class Manager(Person):
 
     # Variables
     managerID = db.Column(db.Integer, db.ForeignKey('person.id'), primary_key=True)
-    capacity_rule_id = db.Column(db.Integer)
-    max_car_capacity = db.Column(db.Integer, nullable=False)
+    capacity_rule_id = db.Column(db.Integer, nullable=True)
+    max_car_capacity = db.Column(db.Integer, nullable=True)
     
     __mapper_args__ = {
         'polymorphic_identity': 'manager',

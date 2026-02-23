@@ -43,5 +43,5 @@ class AvailabilityRecord(db.Model):
         # Marks the availability record as needing changes with manager notes and records the review time
         self.status = 'changes_requested'
         self.manager_notes = manager_notes
-        self.reviewed_at = datetime.now()
+        self.reviewed_at = db.func.now()
         db.session.commit()

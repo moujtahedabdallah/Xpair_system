@@ -11,7 +11,7 @@ class Customer(Person):
     # Variables
     customerID = db.Column(db.Integer, db.ForeignKey('person.id'), primary_key=True)
     booking_history = db.Column(db.Text)
-    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.vehicleID'))
+    #REMOVED: vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.vehicleID'))
 
     __mapper_args__ = {
         'polymorphic_identity': 'customer',
