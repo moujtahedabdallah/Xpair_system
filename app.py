@@ -10,6 +10,7 @@ from src.availability_record import AvailabilityRecord
 from src.customer import Customer
 from src.employee import Employee
 from src.manager import Manager
+from flask_mail import Mail
 
 
 load_dotenv()
@@ -40,3 +41,12 @@ def home():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+# Email configuration for Flask-Mail
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+
+mail.init_app(app)
