@@ -61,3 +61,15 @@ class NotificationService:
             body=f'You have been assigned to a job on {booking.date} at {booking.start_time}.'
         )
         mail.send(msg)
+
+    def send_manager_alert(self, booking, message):
+        # UC5 Flow A-1: Notifies the Owner when a job is put on hold
+        from src.manager import Manager # Import here to avoid circular dependencies
+        owners = Manager.query.all()
+        for owner in owners:
+            msg = Message(
+                subject=f'URGENT: Job #{booking.bookingID} Update - Xpair Detailing',
+                recipients=[owner.email],
+                body=f'Job on {booking.date} for {booking.customer.first_name} requires attention. \nMessage: {message}'
+            )
+            mail.send(msg)

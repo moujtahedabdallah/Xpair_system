@@ -73,9 +73,44 @@ class Employee(Person):
     def add_job_notes(self, bookingID, job_notes):
         # Adds notes to an assigned booking
         booking = Booking.query.get(bookingID)
+        
         if not booking:
             raise ValueError(f"Booking with ID {bookingID} not found.")
         if booking.assigned_employee != self.employeeID:
             raise PermissionError("You are not assigned to this booking.")
+        
+        booking.validate_notes(job_notes) # Trigger validation check
         booking.job_notes = job_notes
         db.session.commit()
+
+    def view_job_details(self, bookingID):
+            # Fetch the data from the database
+            booking = Booking.query.get(bookingID)
+            
+            # Verify the job actually exists
+            if not booking:
+                raise ValueError(f"Booking with ID {bookingID} not found.")
+                
+            # Verify this specific employee is allowed to look at it
+            if booking.assigned_employee != self.employeeID:
+                raise PermissionError("You are not assigned to view this booking.")
+                
+            # Hand the data back to the user
+            return booking
+    
+    def block_job(self, bookingID, block_reason):
+        # Fetch the data
+        booking = Booking.query.get(bookingID)
+
+        # Verify the job actually exists
+        if not booking:
+            raise ValueError(f"Booking with ID {bookingID} not found.")
+                
+        # Verify this specific employee is allowed to look at it
+        if booking.assigned_employee != self.employeeID:
+            raise PermissionError("You are not assigned to view this booking.")
+        
+        booking.update_block_status(True, block_reason)
+
+
+    

@@ -71,3 +71,9 @@ class Dashboard:
             bookings = self.retrieved_data.get('bookings', [])
             filtered = [b for b in bookings if b.periodID == periodID]
             self.retrieved_data['bookings'] = filtered
+
+    def refresh_display(self):
+        # Recalculates everything to ensure the UI shows the latest database changes
+        self.calculate_analytics()
+        self.format_charts()
+        return True

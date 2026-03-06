@@ -1,4 +1,5 @@
 from .database import db
+import os
 
 class Booking(db.Model):
     __tablename__ = 'booking'
@@ -33,6 +34,24 @@ class Booking(db.Model):
     employee = db.relationship('Employee', backref='assigned_jobs')
     
     # Methods
+    def validate_job_status(self, new_status):
+        valid_statuses = ['pending', 'confirmed', 'In Progress', 'completed', 'cancelled', 'on hold']
+        if new_status not in valid_statuses:
+            raise ValueError(f"Invalid status. Must be one of: {valid_statuses}")
+        return True
+
+    def validate_images(self, file_name):
+        allowed_extensions = {'.png', '.jpg', '.jpeg'}
+        ext = os.path.splitext(file_name)[1].lower()
+        if ext not in allowed_extensions:
+            raise ValueError("Invalid image format. Only PNG, JPG, or JPEG allowed.")
+        return True
+    
+    def validate_notes(self, notes):
+        if len(notes) > 1000:
+            raise ValueError("Notes exceed maximum character limit of 1000.")
+        return True
+
     def confirm(self):
         # Confirms the booking
         self.booking_status = 'confirmed'
@@ -51,6 +70,7 @@ class Booking(db.Model):
 
     def update_job_status(self, new_status):
         # Updates the current status of the job
+        self.validate_job_status(new_status) # Trigger validation check
         self.booking_status = new_status
         db.session.commit()
 
@@ -58,15 +78,24 @@ class Booking(db.Model):
         # Blocks or unblocks a time slot with a reason
         self.is_blocked = is_blocked
         self.block_reason = block_reason
+
+        if is_blocked:
+            self.booking_status = 'on hold'
+        else:
+            # If they unblock it, put it back to pending default.
+            self.booking_status = 'pending'
+
         db.session.commit()
 
     def upload_before_images(self, file_path):
         # Saves the file path of before job images e.g. '/uploads/bookings/123/before.jpg'
+        self.validate_images(file_path) # Triggers validation
         self.before_images = file_path
         db.session.commit()
 
     def upload_after_images(self, file_path):
         # Saves the file path of after job images e.g. '/uploads/bookings/123/after.jpg'
+        self.validate_images(file_path) # Triggers validation
         self.after_images = file_path
         db.session.commit()
 
