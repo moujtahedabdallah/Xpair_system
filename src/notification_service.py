@@ -63,7 +63,7 @@ class NotificationService:
         mail.send(msg)
 
     def send_manager_alert(self, booking, message):
-        # UC5 Flow A-1: Notifies the Owner when a job is put on hold
+        #  Notifies the Owner when a job is put on hold
         from src.manager import Manager # Import here to avoid circular dependencies
         owners = Manager.query.all()
         for owner in owners:

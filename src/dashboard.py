@@ -1,6 +1,6 @@
 class Dashboard:
 
-    def __init__(self, filter_period=None):
+    def __init__(self, filter_period=None): # Used to initialize the attributes
         self.filter_period = filter_period
         self.performance_metrics = {}
         self.charts = {}
