@@ -64,7 +64,7 @@ class NotificationService:
 
     def send_manager_alert(self, booking, message):
         #  Notifies the Owner when a job is put on hold
-        from src.manager import Manager # Import here to avoid circular dependencies
+        from src.manager import Manager 
         owners = Manager.query.all()
         for owner in owners:
             msg = Message(
