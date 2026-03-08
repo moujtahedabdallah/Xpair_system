@@ -5,7 +5,7 @@ class Booking(db.Model):
     __tablename__ = 'booking'
 
     # Variables
-    bookingID = db.Column(db.Integer, primary_key=True)
+    bookingID = db.Column(db.Integer, primary_key=True) # Primary key
     periodID = db.Column(db.Integer, nullable=True)  # work week identifier
     date = db.Column(db.Date, nullable=False)
     start_time = db.Column(db.DateTime, nullable=False)
@@ -35,12 +35,14 @@ class Booking(db.Model):
     
     # Methods
     def validate_job_status(self, new_status):
+        # Validates if the new status matches one of the allowed status options
         valid_statuses = ['pending', 'confirmed', 'In Progress', 'completed', 'cancelled', 'on hold']
         if new_status not in valid_statuses:
             raise ValueError(f"Invalid status. Must be one of: {valid_statuses}")
         return True
 
     def validate_images(self, file_name):
+        # Validates image upload formats
         allowed_extensions = {'.png', '.jpg', '.jpeg'}
         ext = os.path.splitext(file_name)[1].lower()
         if ext not in allowed_extensions:
@@ -48,6 +50,7 @@ class Booking(db.Model):
         return True
     
     def validate_notes(self, notes):
+        # Validates string length for database limits
         if len(notes) > 1000:
             raise ValueError("Notes exceed maximum character limit of 1000.")
         return True

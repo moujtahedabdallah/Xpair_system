@@ -2,6 +2,8 @@ from .database import db
 from werkzeug.security import generate_password_hash, check_password_hash
 
 class Person(db.Model):
+    # Parent class for users.
+
     __tablename__ = 'person'
 
     # Variables
@@ -16,7 +18,7 @@ class Person(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.now())
     updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
     
-    # The Sorting Hat --> this essentially sorts the different people classes into their specific roles
+    # This essentially sorts the different people classes into their specific roles
     __mapper_args__ = {
         'polymorphic_identity': 'person',
         'polymorphic_on': role
@@ -30,7 +32,7 @@ class Person(db.Model):
     def update_password(self, new_password):
         # Updates user's password
         self.password = new_password
-        db.session.commit() # This basically saves into the database
+        db.session.commit() 
 
     def update_first_name(self, new_first_name):
         # Updates user's first name

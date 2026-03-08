@@ -6,6 +6,7 @@ from .service import Service
 
 
 class Manager(Person):
+    # Inherits from Person
     __tablename__ = 'manager'
 
     # Variables
@@ -13,6 +14,7 @@ class Manager(Person):
     capacity_rule_id = db.Column(db.Integer, nullable=True)
     max_car_capacity = db.Column(db.Integer, nullable=True)
     
+    # Polymetric identity which essentially identifies this class as a part of the Person class
     __mapper_args__ = {
         'polymorphic_identity': 'manager',
     }

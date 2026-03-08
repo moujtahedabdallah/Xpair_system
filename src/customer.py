@@ -6,12 +6,14 @@ from .vehicle import Vehicle
 
 
 class Customer(Person):
+    # Inherits from person
     __tablename__ = 'customer'
 
     # Variables
     customerID = db.Column(db.Integer, db.ForeignKey('person.id'), primary_key=True)
     booking_history = db.Column(db.Text)
 
+    # Polymetric identity which essentially identifies this class to the Person parent class
     __mapper_args__ = {
         'polymorphic_identity': 'customer',
     }
@@ -26,7 +28,7 @@ class Customer(Person):
             plate = plate,
             size = size,
             type = type,
-            customerID=self.customerID  # This links the car to the owner!
+            customerID=self.customerID  # Links the car to the owner
         )
         db.session.add(added_car)
         db.session.commit()
@@ -85,6 +87,7 @@ class Customer(Person):
         from datetime import timedelta
         end_time = startTime + timedelta(minutes=service.service_duration)
 
+        # Initialized the booking object
         booking = Booking(
             customerID=self.customerID,  
             serviceID=serviceID,        
@@ -97,7 +100,7 @@ class Customer(Person):
         db.session.add(booking)
         db.session.flush()
 
-        # Append booking to history
+        # Add booking to history
         booking_id_str = str(booking.bookingID)
         self.booking_history = (
             (self.booking_history + ',' + booking_id_str)

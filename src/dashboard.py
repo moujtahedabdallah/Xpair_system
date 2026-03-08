@@ -1,5 +1,7 @@
 class Dashboard:
 
+    # A secondary class used for the reporting part
+
     def __init__(self, filter_period=None): # Used to initialize the attributes
         self.filter_period = filter_period
         self.performance_metrics = {}
@@ -23,6 +25,7 @@ class Dashboard:
         confirmed = sum(1 for b in bookings if b.booking_status == 'confirmed')
         pending   = sum(1 for b in bookings if b.booking_status == 'pending')
 
+        # Generate output dictionary
         self.performance_metrics = {
             'total_bookings': total,
             'completed_bookings': completed,
@@ -42,6 +45,7 @@ class Dashboard:
         if not self.performance_metrics:
             self.calculate_analytics()
 
+        # Structures data for pie and bar charts
         self.charts = {
             'booking_status_breakdown': {
                 'type': 'pie',

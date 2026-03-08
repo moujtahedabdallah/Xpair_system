@@ -13,7 +13,7 @@ class Service(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.now())
     updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
 
-    #Service data table
+    # This is the service data dictionary
     SERVICE_DATA = {
     "Basic Package": {"price": 100.0, "duration": 60},
     "Xpair Supreme Package": {"price": 150.0, "duration": 180},

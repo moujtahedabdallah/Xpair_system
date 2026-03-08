@@ -23,6 +23,7 @@ class AvailabilityRecord(db.Model):
     # Relationships for SQLAlchemy
     employee = db.relationship('Employee', backref='availabilities')
     manager = db.relationship('Manager', backref='reviewed_availabilities')
+    
     # Methods
     def validate_availability(self):
         # Checks that start time is before end time
@@ -31,7 +32,7 @@ class AvailabilityRecord(db.Model):
     def update_availability_status(self, new_status):
         # Updates the status of the availability record
         self.status = new_status
-        db.session.commit()
+        db.session.commit() # Save changes to DB
 
     def mark_approved(self):
         # Marks the availability record as approved and records the review time

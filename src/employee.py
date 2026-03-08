@@ -5,6 +5,7 @@ from .booking import Booking
 
 
 class Employee(Person):
+    # Inherits from person
     __tablename__ = 'employee'
 
     # Variables
@@ -14,6 +15,7 @@ class Employee(Person):
     salary = db.Column(db.Float, nullable=False)
     working_hours = db.Column(db.Float, nullable=False)
 
+    # Polymetric identity which essentially identifies this class as a part of the Person class
     __mapper_args__ = {
         'polymorphic_identity': 'employee',
     }
@@ -84,19 +86,19 @@ class Employee(Person):
         db.session.commit()
 
     def view_job_details(self, bookingID):
-            # Fetch the data from the database
-            booking = Booking.query.get(bookingID)
+        # Fetch the data from the database
+        booking = Booking.query.get(bookingID)
             
-            # Verify the job actually exists
-            if not booking:
-                raise ValueError(f"Booking with ID {bookingID} not found.")
+        # Verify the job actually exists
+        if not booking:
+            raise ValueError(f"Booking with ID {bookingID} not found.")
                 
-            # Verify this specific employee is allowed to look at it
-            if booking.assigned_employee != self.employeeID:
-                raise PermissionError("You are not assigned to view this booking.")
+        # Verify this specific employee is allowed to look at it
+        if booking.assigned_employee != self.employeeID:
+            raise PermissionError("You are not assigned to view this booking.")
                 
-            # Hand the data back to the user
-            return booking
+        # Hand the data back to the user
+        return booking
     
     def block_job(self, bookingID, block_reason):
         # Fetch the data

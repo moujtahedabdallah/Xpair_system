@@ -4,6 +4,7 @@ from flask import current_app
 mail = Mail()
 
 class NotificationService:
+    # A service/utility class used for handling notifications.
 
     def send_booking_confirmation(self, booking):
         # Emails customer their booking details
@@ -64,12 +65,12 @@ class NotificationService:
 
     def send_manager_alert(self, booking, message):
         #  Notifies the Owner when a job is put on hold
-        from src.manager import Manager 
+        from src.manager import Manager # We import it here to avoid dependency issues
         owners = Manager.query.all()
         for owner in owners:
             msg = Message(
-                subject=f'URGENT: Job #{booking.bookingID} Update - Xpair Detailing',
+                subject=f'URGENT: Job #{booking.bookingID} Update',
                 recipients=[owner.email],
-                body=f'Job on {booking.date} for {booking.customer.first_name} requires attention. \nMessage: {message}'
+                body=f'The job on {booking.date} for {booking.customer.first_name} requires your attention. \nMessage: {message}'
             )
             mail.send(msg)
