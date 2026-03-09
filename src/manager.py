@@ -90,9 +90,10 @@ class Manager(Person):
         for i in range(len(bookings)):
             for j in range(i + 1, len(bookings)):
                 a, b = bookings[i], bookings[j]
-
+                # If the bookings belong to different employees = no conflict
                 if a.assigned_employee != b.assigned_employee:
                     continue
+                # Checks if start time of booking A starts before booking B ends and vice-versa
                 if a.start_time < b.end_time and b.start_time < a.end_time:
                     conflicts.append((a.bookingID, b.bookingID))
         return conflicts
