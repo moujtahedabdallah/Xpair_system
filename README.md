@@ -1,20 +1,16 @@
-# Xpair_system
-
+# Xpair Detailing System
 Python 3.12.12
 
-To run the app:
+## Overview
+A web-based management system for Xpair Detailing, handling bookings, employee scheduling, availability, and customer notifications.
 
-First clone the repo, install required packages, then run:
-python3 app.py 
-
-access the website at:
-<>
+## Setup
+Clone the repo, create a virtual environment, install required packages, then run the app.
 
 git clone https://github.com/moujtahedabdallah/Xpair_system.git
-
 cd Xpair_system
 
-mac/linux
+Mac/Linux:
 python3 -m venv .venv
 source .venv/bin/activate
 
@@ -22,22 +18,26 @@ Windows:
 py -m venv .venv
 .venv\Scripts\Activate.ps1
 
-install required packages:
+Install required packages:
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 
-REMOVE WHEN SUBMITTING:
-when you first want to work on the project:
-git pull
+Create a .env file in the project root:
+MAIL_USERNAME=xpairdetailing@gmail.com
+MAIL_PASSWORD=fgrd nwei fukv sdwi
 
-then when you finish working:
-git add .
-git commit -m "<what you updated and what you did>"
-git push
+Run the app:
+python3 app.py
 
+The database will be generated automatically on first run.
+Access the website at: http://127.0.0.1:5000
 
-css is where .css goes
-js is where javascript goes
-src is where .py goes
-static is where .html goes
-db is where all sql databases go
+## Project Structure
+src is where .py files go
+static is where .html files go
+css is where .css files go
+js is where javascript files go
+
+## Git Workflow
+When starting work: git pull
+When finishing work: git add . → git commit -m "what you changed" → git push
