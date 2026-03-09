@@ -109,7 +109,8 @@ class Booking(db.Model):
         car = f"{self.vehicle.year} {self.vehicle.model}"
 
         summary = service_name
-
+        
+        # If add-ons exist, join them into a single string
         if selected_add_ons:
             summary = f"{service_name} with {', '.join(selected_add_ons)}"
         

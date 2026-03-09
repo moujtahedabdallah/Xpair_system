@@ -2,7 +2,7 @@ class Dashboard:
 
     # A secondary class used for the reporting part
 
-    def __init__(self, filter_period=None): # Used to initialize the attributes
+    def __init__(self, filter_period=None): # Constructor used to initialize the attributes
         self.filter_period = filter_period
         self.performance_metrics = {}
         self.charts = {}
@@ -45,7 +45,7 @@ class Dashboard:
         if not self.performance_metrics:
             self.calculate_analytics()
 
-        # Structures data for pie and bar charts
+        # Structures data for pie and bar charts (chart.js)
         self.charts = {
             'booking_status_breakdown': {
                 'type': 'pie',
@@ -73,6 +73,7 @@ class Dashboard:
         self.filter_period = periodID
         if isinstance(self.retrieved_data, dict):
             bookings = self.retrieved_data.get('bookings', [])
+            # Keeps only the bookings that match the requested period filter
             filtered = [b for b in bookings if b.periodID == periodID]
             self.retrieved_data['bookings'] = filtered
 

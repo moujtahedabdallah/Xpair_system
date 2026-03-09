@@ -44,7 +44,7 @@ class NotificationService:
 
     def send_schedule_published(self, periodID):
         # Notifies all employees their schedule is live
-        from src.employee import Employee
+        from src.employee import Employee # We import it here to avoid dependency issues
         employees = Employee.query.all()
         for employee in employees:
             msg = Message(

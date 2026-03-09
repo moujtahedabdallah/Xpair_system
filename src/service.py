@@ -56,6 +56,7 @@ class Service(db.Model):
     def calculate_quote_price(self, vehicle_size, selected_add_ons=None):
         # Calculates total price based on vehicle size and selected add-ons
         # Example pricing rules (will be changed to align with actual business logic):
+        
         # Size multipliers
         size_multipliers = {
             'small': 1.0,

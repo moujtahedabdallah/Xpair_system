@@ -79,15 +79,18 @@ class Manager(Person):
 
     def validate_schedule_conflicts(self, periodID):
         # Checks for scheduling conflicts in a given work week
-        # Returns a list of conflicting booking ID pairs (same employee, overlapping times)
+        
+        # Orders bookings chronologically to group employee schedules together
         bookings = Booking.query.filter_by(periodID=periodID).order_by(
             Booking.assigned_employee, Booking.start_time
         ).all()
 
         conflicts = []
+        # Compares every booking against every following one to check for overlaps
         for i in range(len(bookings)):
             for j in range(i + 1, len(bookings)):
                 a, b = bookings[i], bookings[j]
+
                 if a.assigned_employee != b.assigned_employee:
                     continue
                 if a.start_time < b.end_time and b.start_time < a.end_time:

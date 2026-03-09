@@ -61,7 +61,7 @@ class Person(db.Model):
     
     def set_password(self, password):
         # Hashes the password and stores it securely
-        self.password = generate_password_hash(password)
+        self.password = generate_password_hash(password) # Converts plain password to a hashed one and saves it to DB
 
     def authenticate_user(self, inputted_password):
         # Checks if the provided password matches the stored hashed password

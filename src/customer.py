@@ -13,7 +13,7 @@ class Customer(Person):
     customerID = db.Column(db.Integer, db.ForeignKey('person.id'), primary_key=True)
     booking_history = db.Column(db.Text)
 
-    # Polymetric identity which essentially identifies this class to the Person parent class
+    # Polymetric identity which essentially identifies this class as a part of the Person class
     __mapper_args__ = {
         'polymorphic_identity': 'customer',
     }
@@ -64,12 +64,14 @@ class Customer(Person):
         if not service:
             raise ValueError(f"Service with ID {serviceID} not found.")
 
+        # Default to medium, but changes it if the customer has a saved vehicle
         vehicle_size = 'medium'  # default fallback
         if self.vehicle_id:
             vehicle = Vehicle.query.get(self.vehicle_id)
             if vehicle and vehicle.size:
                 vehicle_size = vehicle.size
 
+        # Uses the service class' quote price method and returns details for quote 
         total_price = service.calculate_quote_price(vehicle_size, availableAddOns)
         return {
             'service_name': service.service_name,
@@ -84,6 +86,7 @@ class Customer(Person):
         if not service:
             raise ValueError(f"Service with ID {serviceID} not found.")
 
+        # Calculates the end time by adding the service duration to the requested start time
         from datetime import timedelta
         end_time = startTime + timedelta(minutes=service.service_duration)
 
@@ -98,7 +101,7 @@ class Customer(Person):
             booking_status='pending'
         )
         db.session.add(booking)
-        db.session.flush()
+        db.session.flush() # Flush pushes the object to the database to generate an ID 
 
         # Add booking to history
         booking_id_str = str(booking.bookingID)
