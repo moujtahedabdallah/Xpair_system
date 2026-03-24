@@ -11,6 +11,7 @@ from src.customer import Customer
 from src.employee import Employee
 from src.manager import Manager
 from flask_mail import Mail
+from flask import Flask, render_template
 
 load_dotenv()
 
@@ -38,7 +39,10 @@ with app.app_context():
 
 @app.route('/')
 def home():
-    return "<h1>Welcome to Xpair Detailing</h1>"
+    # Fetch all services from the SQLite database
+    all_services = Service.query.all()
+    # Send them to the index.html template
+    return render_template('index.html', services=all_services)
 
 if __name__ == "__main__":
     app.run(debug=True)
