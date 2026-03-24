@@ -57,7 +57,7 @@ def seed_data():
             print("Test customer and vehicle added.")
 
         db.session.commit()
-        print("\nEVERYTHING IS READY! Check your Neon dashboard now.")
+        print("\nEVERYTHING IS READY! Your local SQLite database is populated.")
 
 if __name__ == "__main__":
     seed_data()
