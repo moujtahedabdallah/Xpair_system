@@ -29,6 +29,10 @@ class Manager(Person):
         record.reviewed_by = self.managerID
         db.session.commit()
 
+        # Triggers email notification
+        from .notification_service import NotificationService
+        NotificationService().notify_stakeholders('availability_approved', recipient=record.employee, payload=record)
+
     def request_changes(self, availabilityID, notes):
         # Requests changes to an employee's availability record
         record = AvailabilityRecord.query.get(availabilityID)
@@ -104,8 +108,14 @@ class Manager(Person):
         for booking in bookings:
             booking.booking_status = 'confirmed'
         db.session.commit()
-        return len(bookings)
 
+        # Triggers email notification
+        from .notification_service import NotificationService
+        NotificationService().notify_stakeholders('schedule_published', recipient=None, payload=periodID)
+        
+        return len(bookings)
+    
+    
     def force_change_appointment_time(self, bookingID, start_time, end_time):
         # Forces a reschedule of a booking to new start and end times
         booking = Booking.query.get(bookingID)
@@ -168,3 +178,9 @@ class Manager(Person):
             raise ValueError(f"Booking with ID {bookingID} not found.")
         booking.assigned_employee = employeeID
         db.session.commit()
+
+        # Triggers email notification
+        from .employee import Employee
+        assigned_emp = Employee.query.get(employeeID)
+        from .notification_service import NotificationService
+        NotificationService().notify_stakeholders('job_assigned', recipient=assigned_emp, payload=booking)

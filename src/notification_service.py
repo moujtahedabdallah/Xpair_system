@@ -15,9 +15,17 @@ class NotificationService:
         recipients_list = []
 
         # ---------------------------------------------------------
-        # 1. CUSTOMER EVENTS
+        # 1. GENERAL/ACCOUNT EVENTS
         # ---------------------------------------------------------
-        if event == 'booking_confirmed':
+        if event == 'profile_created':
+            subject = 'Welcome to Xpair Detailing!'
+            body = f'Hi {recipient.first_name},\n\nYour account has been successfully created. Welcome aboard!'
+            recipients_list = [recipient.email]
+
+        # ---------------------------------------------------------
+        # 2. CUSTOMER EVENTS
+        # ---------------------------------------------------------
+        elif event == 'booking_confirmed':
             subject = 'Booking Confirmation - Xpair Detailing'
             body = f'Your booking has been confirmed for {payload.date} at {payload.start_time}.'
             recipients_list = [recipient.email]
@@ -28,7 +36,7 @@ class NotificationService:
             recipients_list = [recipient.email]
 
         # ---------------------------------------------------------
-        # 2. EMPLOYEE EVENTS
+        # 3. EMPLOYEE EVENTS
         # ---------------------------------------------------------
         elif event == 'availability_approved':
             subject = 'Availability Approved - Xpair Detailing'
@@ -55,7 +63,7 @@ class NotificationService:
             body = f'The official schedule for period {payload} has been published.'
 
         # ---------------------------------------------------------
-        # 3. MANAGER EVENTS
+        # 4. MANAGER EVENTS
         # ---------------------------------------------------------
         elif event == 'manager_alert':
             # Mass email: Alert all managers. Payload is a dictionary containing the booking and the message.

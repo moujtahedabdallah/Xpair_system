@@ -60,6 +60,10 @@ class Booking(db.Model):
         self.booking_status = 'confirmed'
         db.session.commit()
 
+        # Triggers email notification
+        from .notification_service import NotificationService
+        NotificationService().notify_stakeholders('booking_confirmed', recipient=self.customer, payload=self)
+
     def reschedule(self, new_start_time, new_end_time):
         # Reschedules the booking to a new time
         self.start_time = new_start_time
@@ -70,6 +74,10 @@ class Booking(db.Model):
         # Cancels the booking
         self.booking_status = 'cancelled'
         db.session.commit()
+
+        # Triggers email notification
+        from .notification_service import NotificationService
+        NotificationService().notify_stakeholders('booking_cancelled', recipient=self.customer, payload=self)
 
     def update_job_status(self, new_status):
         # Updates the current status of the job

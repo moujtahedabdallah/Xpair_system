@@ -114,5 +114,10 @@ class Employee(Person):
         
         booking.update_block_status(True, block_reason)
 
-
+        from .notification_service import NotificationService
+        NotificationService().notify_stakeholders(
+            event='manager_alert',
+            recipient=None, 
+            payload={'booking': booking, 'message': block_reason}
+        )
     
