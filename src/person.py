@@ -29,6 +29,13 @@ class Person(db.Model):
         db.session.add(self) 
         db.session.commit() # This basically saves into the database
 
+        # Trigger the welcome email
+        from .notification_service import NotificationService
+        NotificationService().notify_stakeholders(
+            event='profile_created', 
+            recipient=self
+        )
+
     def update_password(self, new_password):
         # Updates user's password
         self.password = new_password
