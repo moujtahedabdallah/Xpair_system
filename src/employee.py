@@ -60,6 +60,9 @@ class Employee(Person):
             raise PermissionError("You are not assigned to this booking.")
         booking.update_job_status(booking_status)
 
+        return True
+        
+
     def upload_job_images(self, bookingID, before_images=None, after_images=None):
         # Uploads before and/or after images for a booking
         booking = Booking.query.get(bookingID)
@@ -71,6 +74,8 @@ class Employee(Person):
             booking.upload_before_images(before_images)
         if after_images:
             booking.upload_after_images(after_images)
+
+        return True
 
     def add_job_notes(self, bookingID, job_notes):
         # Adds notes to an assigned booking

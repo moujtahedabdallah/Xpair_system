@@ -72,6 +72,8 @@ class Booking(db.Model):
         self.date = new_start_time.date()  # Keep date field in sync with the new start time
         db.session.commit()
 
+        return True
+
     def cancel(self) -> bool:
         # Cancels the booking
         self.booking_status = 'cancelled'
@@ -88,6 +90,8 @@ class Booking(db.Model):
         self.booking_status = new_status
         db.session.commit()
 
+        return True
+
     def update_block_status(self, is_blocked, block_reason):
         # Blocks or unblocks a time slot with a reason
         self.is_blocked = is_blocked
@@ -101,17 +105,23 @@ class Booking(db.Model):
 
         db.session.commit()
 
+        return True
+
     def upload_before_images(self, file_path):
         # Saves the file path of before job images e.g. '/uploads/bookings/123/before.jpg'
         self.validate_images(file_path) # Triggers validation
         self.before_images = file_path
         db.session.commit()
 
+        return True
+
     def upload_after_images(self, file_path):
         # Saves the file path of after job images e.g. '/uploads/bookings/123/after.jpg'
         self.validate_images(file_path) # Triggers validation
         self.after_images = file_path
         db.session.commit()
+
+        return True
 
     def generate_booking_summary(self, selected_add_ons=None):
         # Auto-generates a booking summary

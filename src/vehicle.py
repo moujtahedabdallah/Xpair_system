@@ -26,6 +26,8 @@ class Vehicle(db.Model):
         db.session.add(self)
         db.session.commit()
 
+        return True
+
     def update_make(self, new_make):
         # Updates vehicle make
         self.make = new_make

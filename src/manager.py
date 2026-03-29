@@ -20,7 +20,7 @@ class Manager(Person):
     }
 
     # Methods
-    def approve_availability(self, availabilityID):
+    def approve_availability(self, availabilityID) -> bool:
         # Approves an employee's availability record
         record = AvailabilityRecord.query.get(availabilityID)
         if not record:
@@ -32,8 +32,10 @@ class Manager(Person):
         # Triggers email notification
         from .notification_service import NotificationService
         NotificationService().notify(recipient=record.employee, event='availability_approved', occupant=record)
-
-    def request_changes(self, availabilityID, notes):
+        
+        return True
+    
+    def request_changes(self, availabilityID, notes) -> bool:
         # Requests changes to an employee's availability record
         record = AvailabilityRecord.query.get(availabilityID)
         if not record:
@@ -45,12 +47,16 @@ class Manager(Person):
         # Triggers email notification
         from .notification_service import NotificationService
         NotificationService().notify(recipient=record.employee, event='availability_changes_requested', occupant=record)
+        
+        return True
 
     def enforce_capacity_rule(self, capacity_rule_id, max_car_capacity):
         # Sets the maximum number of cars allowed per day
         self.capacity_rule_id = capacity_rule_id
         self.max_car_capacity = max_car_capacity
         db.session.commit()
+
+        return True
 
     def block_time_slot(self, block_reason, start_time, end_time):
         # Blocks a time slot so it cannot be booked.
@@ -82,6 +88,8 @@ class Manager(Person):
         service.base_price = base_price
         db.session.commit()
 
+        return True
+
     def configure_add_on_options(self, serviceID, available_add_ons):
         # Updates the available add-ons for a service
         service = Service.query.get(serviceID)
@@ -89,6 +97,8 @@ class Manager(Person):
             raise ValueError(f"Service with ID {serviceID} not found.")
         service.available_add_ons = available_add_ons
         db.session.commit()
+
+        return True
 
     def validate_schedule_conflicts(self, periodID):
         # Checks for scheduling conflicts in a given work week
@@ -132,12 +142,16 @@ class Manager(Person):
             raise ValueError(f"Booking with ID {bookingID} not found.")
         booking.reschedule(start_time, end_time)
 
-    def process_cancellation(self, bookingID):
+        return True
+
+    def process_cancellation(self, bookingID) -> bool:
         # Cancels a booking on behalf of the manager
         booking = Booking.query.get(bookingID)
         if not booking:
             raise ValueError(f"Booking with ID {bookingID} not found.")
         booking.cancel()
+        
+        return True
 
     def finalize_and_save_schedule(self, periodID):
         # Validates there are no conflicts, then publishes the schedule
@@ -148,6 +162,8 @@ class Manager(Person):
                 f"Conflicting booking pairs: {conflicts}"
             )
         self.publish_official_schedule(periodID)
+
+        return True
 
     def generate_report(self, periodID) -> list:
         # Generates a performance report for a given work week
@@ -189,6 +205,8 @@ class Manager(Person):
             raise ValueError(f"Booking with ID {bookingID} not found.")
         booking.assigned_employee = employeeID
         db.session.commit()
+
+        return True
 
         # Triggers email notification
         from .employee import Employee

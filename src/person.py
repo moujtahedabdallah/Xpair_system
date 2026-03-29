@@ -36,6 +36,8 @@ class Person(db.Model):
             event='profile_created'
         )
 
+        return True    
+
     def update_password(self, new_password):
         # Hashes the new password and saves it securely
         self.password = generate_password_hash(new_password)
