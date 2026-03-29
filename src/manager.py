@@ -26,12 +26,12 @@ class Manager(Person):
         if not record:
             raise ValueError(f"AvailabilityRecord with ID {availabilityID} not found.")
         record.mark_approved()
-        record.reviewed_by = self.managerID
+        record.managerID = self.managerID  # Link this manager as the reviewer
         db.session.commit()
 
         # Triggers email notification
         from .notification_service import NotificationService
-        NotificationService().notify_stakeholders('availability_approved', recipient=record.employee, payload=record)
+        NotificationService().notify(recipient=record.employee, event='availability_approved', occupant=record)
 
     def request_changes(self, availabilityID, notes):
         # Requests changes to an employee's availability record
@@ -39,8 +39,12 @@ class Manager(Person):
         if not record:
             raise ValueError(f"AvailabilityRecord with ID {availabilityID} not found.")
         record.mark_changes_requested(notes)
-        record.reviewed_by = self.managerID
+        record.managerID = self.managerID  # Link this manager as the reviewer
         db.session.commit()
+
+        # Triggers email notification
+        from .notification_service import NotificationService
+        NotificationService().notify(recipient=record.employee, event='availability_changes_requested', occupant=record)
 
     def enforce_capacity_rule(self, capacity_rule_id, max_car_capacity):
         # Sets the maximum number of cars allowed per day
@@ -49,7 +53,9 @@ class Manager(Person):
         db.session.commit()
 
     def block_time_slot(self, block_reason, start_time, end_time):
-        # Blocks a time slot so it cannot be booked
+        # Blocks a time slot so it cannot be booked.
+        # customerID, serviceID, and vehicleID are set to None for manager-blocked slots;
+        # those columns must be nullable=True in the Booking model to support this.
         from datetime import datetime
         slot = Booking(
             periodID=None,
@@ -59,7 +65,10 @@ class Manager(Person):
             is_available=False,
             is_blocked=True,
             block_reason=block_reason,
-            booking_status='blocked'
+            booking_status='blocked',
+            customerID=None,
+            serviceID=None,
+            vehicleID=None,
         )
         db.session.add(slot)
         db.session.commit()
@@ -111,7 +120,7 @@ class Manager(Person):
 
         # Triggers email notification
         from .notification_service import NotificationService
-        NotificationService().notify_stakeholders('schedule_published', recipient=None, payload=periodID)
+        NotificationService().notify(recipient=None, event='schedule_published', occupant=periodID)
         
         return len(bookings)
     
@@ -140,8 +149,9 @@ class Manager(Person):
             )
         self.publish_official_schedule(periodID)
 
-    def generate_report(self, periodID):
+    def generate_report(self, periodID) -> list:
         # Generates a performance report for a given work week
+        # Returns a list of metric entries; Dashboard handles display
         bookings = Booking.query.filter_by(periodID=periodID).all()
         total = len(bookings)
         completed = sum(1 for b in bookings if b.booking_status == 'completed')
@@ -149,26 +159,27 @@ class Manager(Person):
         confirmed = sum(1 for b in bookings if b.booking_status == 'confirmed')
         pending   = sum(1 for b in bookings if b.booking_status == 'pending')
 
-        return {
-            'periodID': periodID,
-            'total_bookings': total,
-            'completed': completed,
-            'cancelled': cancelled,
-            'confirmed': confirmed,
-            'pending': pending,
-            'completion_rate': round((completed / total * 100), 2) if total > 0 else 0,
-        }
+        return [
+            {'metric': 'periodID',         'value': periodID},
+            {'metric': 'total_bookings',   'value': total},
+            {'metric': 'completed',        'value': completed},
+            {'metric': 'cancelled',        'value': cancelled},
+            {'metric': 'confirmed',        'value': confirmed},
+            {'metric': 'pending',          'value': pending},
+            {'metric': 'completion_rate',  'value': round((completed / total * 100), 2) if total > 0 else 0},
+        ]
 
-    def retrieve_system_data(self):
-        # Retrieves system-wide data for the dashboard
+    def retrieve_system_data(self) -> dict:
+        # Retrieves system-wide data for the dashboard.
+        # Returns a keyed dict so Dashboard.calculate_analytics() can consume it correctly.
         from .employee import Employee
         from .customer import Customer
 
         return {
-            'bookings': Booking.query.all(),
+            'bookings':  Booking.query.all(),
             'employees': Employee.query.all(),
             'customers': Customer.query.all(),
-            'services': Service.query.all(),
+            'services':  Service.query.all(),
         }
 
     def assign_employee(self, bookingID, employeeID):
@@ -183,4 +194,4 @@ class Manager(Person):
         from .employee import Employee
         assigned_emp = Employee.query.get(employeeID)
         from .notification_service import NotificationService
-        NotificationService().notify_stakeholders('job_assigned', recipient=assigned_emp, payload=booking)
+        NotificationService().notify(recipient=assigned_emp, event='job_assigned', occupant=booking)

@@ -22,9 +22,9 @@ class Booking(db.Model):
     updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
     
     # Foreign Keys
-    customerID = db.Column(db.Integer, db.ForeignKey('customer.customerID'), nullable=False)
-    serviceID = db.Column(db.Integer, db.ForeignKey('service.serviceID'), nullable=False)
-    vehicleID = db.Column(db.Integer, db.ForeignKey('vehicle.vehicleID'), nullable=False) 
+    customerID = db.Column(db.Integer, db.ForeignKey('customer.customerID'), nullable=True)   # Nullable to support manager-blocked slots
+    serviceID = db.Column(db.Integer, db.ForeignKey('service.serviceID'), nullable=True)       # Nullable to support manager-blocked slots
+    vehicleID = db.Column(db.Integer, db.ForeignKey('vehicle.vehicleID'), nullable=True)       # Nullable to support manager-blocked slots
     assigned_employee = db.Column(db.Integer, db.ForeignKey('employee.employeeID'), nullable=True)
     
     # Relationships for SQLAlchemy
@@ -36,7 +36,7 @@ class Booking(db.Model):
     # Methods
     def validate_job_status(self, new_status):
         # Validates if the new status matches one of the allowed status options
-        valid_statuses = ['pending', 'confirmed', 'In Progress', 'completed', 'cancelled', 'on hold']
+        valid_statuses = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'on_hold']
         if new_status not in valid_statuses:
             raise ValueError(f"Invalid status. Must be one of: {valid_statuses}")
         return True
@@ -55,29 +55,32 @@ class Booking(db.Model):
             raise ValueError("Notes exceed maximum character limit of 1000.")
         return True
 
-    def confirm(self):
+    def confirm(self) -> bool:
         # Confirms the booking
         self.booking_status = 'confirmed'
         db.session.commit()
 
         # Triggers email notification
         from .notification_service import NotificationService
-        NotificationService().notify_stakeholders('booking_confirmed', recipient=self.customer, payload=self)
+        NotificationService().notify(recipient=self.customer, event='booking_confirmed', occupant=self)
+        return True
 
     def reschedule(self, new_start_time, new_end_time):
         # Reschedules the booking to a new time
         self.start_time = new_start_time
         self.end_time = new_end_time
+        self.date = new_start_time.date()  # Keep date field in sync with the new start time
         db.session.commit()
 
-    def cancel(self):
+    def cancel(self) -> bool:
         # Cancels the booking
         self.booking_status = 'cancelled'
         db.session.commit()
 
         # Triggers email notification
         from .notification_service import NotificationService
-        NotificationService().notify_stakeholders('booking_cancelled', recipient=self.customer, payload=self)
+        NotificationService().notify(recipient=self.customer, event='booking_cancelled', occupant=self)
+        return True
 
     def update_job_status(self, new_status):
         # Updates the current status of the job
@@ -91,7 +94,7 @@ class Booking(db.Model):
         self.block_reason = block_reason
 
         if is_blocked:
-            self.booking_status = 'on hold'
+            self.booking_status = 'on_hold'
         else:
             # If they unblock it, put it back to pending default.
             self.booking_status = 'pending'

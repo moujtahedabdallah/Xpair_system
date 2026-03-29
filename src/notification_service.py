@@ -4,12 +4,13 @@ from app import mail
 class NotificationService:
     # A generalized utility class for handling all system notifications via Pub-Sub pattern.
 
-    def notify_stakeholders(self, event: str, recipient=None, payload=None):
+    def notify(self, recipient=None, event: str = '', occupant=None):
         """
-        event: String identifier for the notification type.
         recipient: The Person object (Customer, Employee) receiving the email. Can be None for mass emails.
-        payload: The object tied to the event (e.g., Booking object, AvailabilityRecord object, or a Dictionary).
+        event: String identifier for the notification type.
+        occupant: The object tied to the event (e.g., Booking object, AvailabilityRecord object, or a Dictionary).
         """
+        payload = occupant  # Internal alias for readability throughout the method
         subject = ""
         body = ""
         recipients_list = []
@@ -83,3 +84,5 @@ class NotificationService:
         if recipients_list:
             msg = Message(subject=subject, recipients=recipients_list, body=body)
             mail.send(msg)
+            return True
+        return False

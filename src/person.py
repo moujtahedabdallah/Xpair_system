@@ -31,14 +31,14 @@ class Person(db.Model):
 
         # Trigger the welcome email
         from .notification_service import NotificationService
-        NotificationService().notify_stakeholders(
-            event='profile_created', 
-            recipient=self
+        NotificationService().notify(
+            recipient=self,
+            event='profile_created'
         )
 
     def update_password(self, new_password):
-        # Updates user's password
-        self.password = new_password
+        # Hashes the new password and saves it securely
+        self.password = generate_password_hash(new_password)
         db.session.commit() 
 
     def update_first_name(self, new_first_name):
@@ -66,13 +66,6 @@ class Person(db.Model):
         self.address = new_address
         db.session.commit()
     
-    def set_password(self, password):
-        # Hashes the password and stores it securely
-        self.password = generate_password_hash(password) # Converts plain password to a hashed one and saves it to DB
-
     def authenticate_user(self, inputted_password):
         # Checks if the provided password matches the stored hashed password
         return check_password_hash(self.password, inputted_password)
-
-
-

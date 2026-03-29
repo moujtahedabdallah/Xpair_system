@@ -3,18 +3,18 @@ class Dashboard:
     # A secondary class used for the reporting part
 
     def __init__(self, filter_period=None): # Constructor used to initialize the attributes
-        self.filter_period = filter_period
-        self.performance_metrics = {}
-        self.charts = {}
-        self.retrieved_data = []
+        self.filter_period: int = filter_period
+        self.performance_metrics: dict = {}
+        self.charts: dict = {}
+        self.retrieved_data: dict = {}
 
-    def calculate_analytics(self):
+    def calculate_analytics(self) -> dict:
         # Calculates performance analytics from retrieved data
         if not self.retrieved_data:
             self.performance_metrics = {}
             return self.performance_metrics
 
-        bookings = self.retrieved_data.get('bookings', [])
+        bookings  = self.retrieved_data.get('bookings', [])
         employees = self.retrieved_data.get('employees', [])
         customers = self.retrieved_data.get('customers', [])
         services  = self.retrieved_data.get('services', [])
@@ -40,7 +40,7 @@ class Dashboard:
         }
         return self.performance_metrics
 
-    def format_charts(self):
+    def format_charts(self) -> dict:
         # Formats performance metrics into chart-ready structures
         if not self.performance_metrics:
             self.calculate_analytics()
@@ -68,16 +68,15 @@ class Dashboard:
         }
         return self.charts
 
-    def apply_filter(self, periodID):
+    def apply_filter(self, periodID: int) -> None:
         # Filters dashboard data by work week
         self.filter_period = periodID
         if isinstance(self.retrieved_data, dict):
             bookings = self.retrieved_data.get('bookings', [])
             # Keeps only the bookings that match the requested period filter
-            filtered = [b for b in bookings if b.periodID == periodID]
-            self.retrieved_data['bookings'] = filtered
+            self.retrieved_data['bookings'] = [b for b in bookings if b.periodID == periodID]
 
-    def refresh_display(self):
+    def refresh_data(self) -> bool:
         # Recalculates everything to ensure the UI shows the latest database changes
         self.calculate_analytics()
         self.format_charts()

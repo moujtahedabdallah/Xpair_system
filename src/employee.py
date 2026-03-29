@@ -25,7 +25,7 @@ class Employee(Person):
         # Submits a new availability record for the given work week
         record = AvailabilityRecord(
             periodID=periodID,
-            employee_id=self.employeeID,
+            employeeID=self.employeeID,
             day=day,
             start_time=start_time,
             end_time=end_time,
@@ -100,7 +100,7 @@ class Employee(Person):
         # Hand the data back to the user
         return booking
     
-    def block_job(self, bookingID, block_reason):
+    def block_job(self, bookingID, block_reason) -> bool:
         # Fetch the data
         booking = Booking.query.get(bookingID)
 
@@ -116,9 +116,9 @@ class Employee(Person):
 
         # Triggers email notification
         from .notification_service import NotificationService
-        NotificationService().notify_stakeholders(
+        NotificationService().notify(
+            recipient=None,
             event='manager_alert',
-            recipient=None, 
-            payload={'booking': booking, 'message': block_reason}
+            occupant={'booking': booking, 'message': block_reason}
         )
-    
+        return True

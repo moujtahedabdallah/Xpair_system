@@ -12,6 +12,7 @@ class Customer(Person):
     # Variables
     customerID = db.Column(db.Integer, db.ForeignKey('person.id'), primary_key=True)
     booking_history = db.Column(db.Text)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.vehicleID'), nullable=True)  # Tracks the customer's most recently used vehicle
 
     # Polymetric identity which essentially identifies this class as a part of the Person class
     __mapper_args__ = {
@@ -47,7 +48,7 @@ class Customer(Person):
             raise ValueError(f"Service with ID {serviceID} not found.")
         return service
 
-    def select_vehicle_size(self, size):
+    def select_vehicle_size(self, serviceID, size):
         # Validates the requested vehicle size and updates the customer's vehicle record
         valid_sizes = ['small', 'medium', 'large']
         if size not in valid_sizes:
@@ -58,7 +59,7 @@ class Customer(Person):
                 vehicle.update_size(size)
         return size
 
-    def request_and_review_quote(self, serviceID, availableAddOns):
+    def request_and_review_quote(self, serviceID, selected_add_ons):
         # Calculates and returns a price quote for the selected service and add-ons
         service = Service.query.get(serviceID)
         if not service:
@@ -72,11 +73,11 @@ class Customer(Person):
                 vehicle_size = vehicle.size
 
         # Uses the service class' quote price method and returns details for quote 
-        total_price = service.calculate_quote_price(vehicle_size, availableAddOns)
+        total_price = service.calculate_quote_price(vehicle_size, selected_add_ons)
         return {
             'service_name': service.service_name,
             'vehicle_size': vehicle_size,
-            'add_ons': availableAddOns,
+            'add_ons': selected_add_ons,
             'total_price': total_price,
         }
 
@@ -123,7 +124,7 @@ class Customer(Person):
             raise ValueError(f"Booking with ID {bookingID} not found.")
         return booking
 
-    def cancel_booking(self, bookingID):
+    def cancel_booking(self, bookingID) -> bool:
         # Cancels an existing booking for the customer
         booking = Booking.query.get(bookingID)
         if not booking:
@@ -131,3 +132,4 @@ class Customer(Person):
         if booking.booking_status == 'cancelled':
             raise ValueError(f"Booking {bookingID} is already cancelled.")
         booking.cancel()
+        return True
