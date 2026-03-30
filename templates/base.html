@@ -1,5 +1,3 @@
-<!-- JUST FOR TESTING THE FRONT-END FUNCTIONALITY, NOT OFFICIAL -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,34 +5,217 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Xpair Detailing{% endblock %}</title>
     
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <style>
+        :root {
+            --xpair-red: #D82242; 
+            --xpair-bg: #F8F9FA;  
+            --xpair-dark: #1A1D21;
+            --xpair-border: #E5E7EB;
+        }
+        
+        body { 
+            background-color: var(--xpair-bg); 
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        
+        /* Standard Xpair Card Styling */
+        .xpair-card {
+            border-radius: 16px;
+            border: 1px solid var(--xpair-border);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+            background: white;
+            transition: transform 0.2s ease;
+        }
+        
+        .btn-xpair { 
+            background-color: var(--xpair-red); 
+            color: white; 
+            border-radius: 10px; 
+            border: none;
+            transition: all 0.3s ease;
+        }
+        .btn-xpair:hover { background-color: #b51c36; color: white; transform: translateY(-2px); }
+
+        .text-xpair { color: var(--xpair-red); }
+
+        /* ========================================== */
+        /* SELECTABLE CARD SYSTEM (No-Circle Inputs)  */
+        /* ========================================== */
+        
+        /* Hide the actual radio/checkbox input */
+        .selectable-card-input {
+            display: none;
+        }
+
+        /* The Box Container */
+        .selectable-card-label {
+            display: block;
+            cursor: pointer;
+            height: 100%;
+        }
+
+        .xpair-selectable-card {
+            border: 2px solid var(--xpair-border);
+            border-radius: 14px;
+            padding: 24px;
+            background: white;
+            transition: all 0.2s ease-in-out;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; /* Ensures Name at top, Price at bottom */
+            min-height: 150px; /* Forces uniform height across the row */
+        }
+
+        /* Hover Effect (Turns grey) */
+        .selectable-card-label:hover .xpair-selectable-card {
+            background-color: #F3F4F6;
+            border-color: #D1D5DB;
+        }
+
+        /* Selected State (Turns Red) */
+        .selectable-card-input:checked + .xpair-selectable-card {
+            border-color: var(--xpair-red);
+            background-color: rgba(216, 34, 66, 0.03);
+            box-shadow: 0 0 0 1px var(--xpair-red);
+        }
+
+        /* Distance control inside cards */
+        .package-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: var(--xpair-dark);
+        }
+
+        .package-price {
+            font-weight: 800;
+            color: var(--xpair-red);
+            font-size: 1.25rem;
+            margin-top: 15px; /* Keeps consistent spacing regardless of description length */
+        }
+
+        /* ========================================== */
+        /* TOAST NOTIFICATION STYLING                 */
+        /* ========================================== */
+        .xpair-toast-container {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 9999;
+        }
+
+        .xpair-toast {
+            min-width: 350px;
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 10px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+            display: flex;
+            align-items: center;
+            border-left: 6px solid var(--xpair-red);
+            transform: translateX(450px);
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .xpair-toast.show { transform: translateX(0); }
+
+        .toast-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(216, 34, 66, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            color: var(--xpair-red);
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top py-3 shadow-sm">
         <div class="container">
-            <a class="navbar-brand" href="/">Xpair Detailing</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <a class="navbar-brand fw-bold fs-4" href="{{ url_for('home') }}">
+                <span class="text-dark">Xpair</span><span class="text-xpair">Detailing</span>
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
+            
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/">Home/Catalog</a>
+                <ul class="navbar-nav ms-auto align-items-center fw-bold">
+                    <li class="nav-item me-3">
+                        <a class="nav-link text-dark" href="{{ url_for('home') }}">Home</a>
+                    </li>
+                    <li class="nav-item me-4">
+                        <a class="nav-link text-muted" href="#">Log In / Sign Up</a> 
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link btn btn-primary text-white ms-3 px-3" href="/book">Book Now</a>
+                        <a class="btn btn-xpair px-4 py-2 rounded-pill shadow-sm" href="{{ url_for('booking_page') }}">Book Appointment</a>
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <div class="container">
-        {% block content %}
-        {% endblock %}
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <div class="xpair-toast-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="xpair-toast" id="toast-{{ loop.index }}">
+                        <div class="toast-icon">
+                            {% if category == 'success' %}
+                                <i class="bi bi-check2-circle"></i>
+                            {% elif category == 'danger' %}
+                                <i class="bi bi-exclamation-triangle"></i>
+                            {% else %}
+                                <i class="bi bi-info-circle"></i>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">
+                                {% if 'rescheduled' in message.lower() %} Booking Rescheduled
+                                {% elif 'cancelled' in message.lower() %} Booking Cancelled
+                                {% else %} Notification {% endif %}
+                            </h6>
+                            <small class="text-muted">{{ message }}</small>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const toasts = document.querySelectorAll('.xpair-toast');
+            toasts.forEach((toast, index) => {
+                setTimeout(() => {
+                    toast.classList.add('show');
+                }, index * 200);
+
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 5000);
+            });
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
 </body>
 </html>

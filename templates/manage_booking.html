@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-5">
+    <div class="mb-4">
+        <h2 class="fw-bold mb-1">Manage Booking</h2>
+        <p class="text-muted">View and modify your appointment details</p>
+    </div>
+
+    <div class="card xpair-card p-0 overflow-hidden shadow-sm">
+        <div class="p-4 border-bottom d-flex justify-content-between align-items-center bg-white">
+            <div>
+                <h5 class="fw-bold mb-0">Booking Details</h5>
+                <small class="text-muted">ID: BK-{{ booking.bookingID }}</small>
+            </div>
+            <span class="badge rounded-pill px-3 py-2 
+                {% if booking.booking_status == 'confirmed' %} bg-success-subtle text-success 
+                {% elif booking.booking_status == 'cancelled' %} bg-danger-subtle text-danger 
+                {% else %} bg-warning-subtle text-warning {% endif %}">
+                {{ booking.booking_status|capitalize }}
+            </span>
+        </div>
+
+        <div class="p-4 bg-white">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <label class="small text-muted text-uppercase fw-bold mb-2 d-block">Service</label>
+                    <h5 class="fw-bold mb-1">{{ booking.service.service_name }}</h5>
+                    <p class="text-muted small">{{ booking.service.description }}</p>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="small text-muted text-uppercase fw-bold mb-2 d-block">Date & Time</label>
+                    <h5 class="fw-bold mb-0">{{ booking.date.strftime('%Y-%m-%d') }} at {{ booking.start_time.strftime('%I:%M %p') }}</h5>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="small text-muted text-uppercase fw-bold mb-2 d-block">Location</label>
+                    <h6 class="fw-bold mb-0">Xpair Detailing - Main Hub</h6>
+                    <small class="text-muted">Laval, QC (Mobile Service)</small>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="small text-muted text-uppercase fw-bold mb-2 d-block">Estimated Duration</label>
+                    <h6 class="fw-bold mb-0">{{ booking.service.service_duration // 60 }}-{{ (booking.service.service_duration // 60) + 1 }} hours</h6>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 bg-light border-top d-flex gap-3">
+            <a href="{{ url_for('reschedule_booking', booking_id=booking.bookingID) }}" class="btn btn-dark px-5 py-2 fw-bold flex-grow-1">Reschedule</a>
+            
+            <button type="button" class="btn btn-outline-danger px-5 py-2 fw-bold flex-grow-1" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                Cancel Booking
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 xpair-card p-4">
+            <div class="text-center p-3">
+                <div class="bg-danger-subtle text-danger rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 70px; height: 70px;">
+                    <i class="bi bi-exclamation-triangle fs-1"></i>
+                </div>
+                <h3 class="fw-bold mb-3">Cancel Booking?</h3>
+                <p class="text-muted px-3">Are you sure you want to cancel this booking? This action cannot be undone.</p>
+            </div>
+            <div class="d-flex gap-3 mt-3">
+                <button type="button" class="btn btn-light w-100 py-3 fw-bold" data-bs-dismiss="modal">Go Back</button>
+                <form action="{{ url_for('cancel_booking', booking_id=booking.bookingID) }}" method="POST" class="w-100">
+                    <button type="submit" class="btn btn-xpair w-100 py-3 fw-bold">Confirm Cancel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

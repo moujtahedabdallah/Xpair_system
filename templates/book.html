@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    /* Flatpickr Customization to match Xpair Red */
+    .flatpickr-day.selected {
+        background: var(--xpair-red) !important;
+        border-color: var(--xpair-red) !important;
+    }
+    .flatpickr-calendar.inline {
+        width: 100%;
+        box-shadow: none;
+        border: none;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h2 class="fw-bold">Select Your Service</h2>
+        <p class="text-muted">Choose the detailing package that best suits your needs</p>
+    </div>
+
+    <form action="{{ url_for('booking_page') }}" method="POST">
+        <div class="row g-4">
+            
+            <div class="col-lg-8">
+                
+                <h5 class="fw-bold mb-3">Choose a Package</h5>
+                <div class="row row-cols-1 row-cols-md-3 g-3 mb-5">
+                    {% for service in services %}
+                    <div class="col">
+                        <label class="selectable-card-label">
+                            <input type="radio" name="serviceID" value="{{ service.serviceID }}" 
+                                   class="selectable-card-input service-input" 
+                                   data-price="{{ service.base_price }}" 
+                                   data-name="{{ service.service_name }}" required>
+                            <div class="xpair-selectable-card">
+                                <div>
+                                    <div class="package-name">{{ service.service_name }}</div>
+                                    <p class="text-muted small mb-2">{{ service.description[:60] }}...</p>
+                                    <span class="badge bg-light text-dark border small"><i class="bi bi-clock"></i> {{ service.service_duration }}m</span>
+                                </div>
+                                <div class="package-price">${{ "%.2f"|format(service.base_price) }}</div>
+                            </div>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <h5 class="fw-bold mb-3">Vehicle Size</h5>
+                <div class="row g-3 mb-5">
+                    {% for size, desc in [('Small', 'Sedan, Coupe'), ('Medium', 'SUV, Truck'), ('Large', 'Van, Large SUV')] %}
+                    <div class="col-4">
+                        <label class="selectable-card-label">
+                            <input type="radio" name="vehicleSize" value="{{ size }}" class="selectable-card-input size-input" required>
+                            <div class="xpair-selectable-card text-center py-3" style="min-height: 100px;">
+                                <span class="fw-bold d-block">{{ size }}</span>
+                                <small class="text-muted">{{ desc }}</small>
+                            </div>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <h5 class="fw-bold mb-3">Add-On Services</h5>
+                <div class="card xpair-card p-0 mb-5 overflow-hidden">
+                    <ul class="list-group list-group-flush">
+                        {% for addon_name, addon_price in addons.items() %}
+                        <li class="list-group-item p-4 d-flex justify-content-between align-items-center bg-white">
+                            <div class="form-check custom-checkbox">
+                                <input class="form-check-input addon-input me-2" type="checkbox" name="addons" value="{{ addon_name }}" id="addon_{{ loop.index }}" data-price="{{ addon_price }}">
+                                <label class="form-check-label fw-bold" for="addon_{{ loop.index }}">{{ addon_name }}</label>
+                            </div>
+                            <span class="text-xpair fw-bold">+${{ "%.2f"|format(addon_price) }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                
+                <h5 class="fw-bold mb-3">Your Details</h5>
+                <div class="card xpair-card p-4 mb-5">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">First Name</label>
+                            <input type="text" name="first_name" class="form-control bg-light border-0 py-2" placeholder="John" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Last Name</label>
+                            <input type="text" name="last_name" class="form-control bg-light border-0 py-2" placeholder="Doe" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Email Address</label>
+                            <input type="email" name="email" class="form-control bg-light border-0 py-2" placeholder="john@example.com" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small">Phone Number</label>
+                            <input type="tel" name="phone" class="form-control bg-light border-0 py-2" placeholder="(514) 123-4567" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <h5 class="fw-bold mb-3">Select Date & Time</h5>
+                <div class="row g-4 mb-5">
+                    <div class="col-md-6">
+                        <div class="card xpair-card p-4 h-100">
+                            <h6 class="fw-bold mb-3">1. Select Date</h6>
+                            <div id="inline-calendar-container" class="w-100 d-flex justify-content-center"></div>
+                            <input type="hidden" name="date" id="real-date-input" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card xpair-card p-4 h-100">
+                            <h6 class="fw-bold mb-3">2. Select Time</h6>
+                            <div class="row g-2">
+                                {% for time in ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'] %}
+                                <div class="col-6">
+                                    <label class="selectable-card-label">
+                                        <input type="radio" name="time" value="{{ time }}" class="selectable-card-input time-input" required>
+                                        <div class="xpair-selectable-card py-2 text-center" style="min-height: 50px;">
+                                            <span class="fw-bold small">{{ time }}</span>
+                                        </div>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card xpair-card p-4 sticky-top" style="top: 100px;">
+                    <h5 class="fw-bold mb-4">Booking Summary</h5>
+                    
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted small">Package</span>
+                        <span class="fw-bold small text-end" id="summary-service">Not selected</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted small">Size</span>
+                        <span class="fw-bold small text-end" id="summary-size">--</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted small">Appointment</span>
+                        <span class="fw-bold small text-end" id="summary-datetime">--</span>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <span class="fw-bold">Total Est.</span>
+                        <h3 class="text-xpair fw-bold mb-0" id="summary-total">$0.00</h3>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-xpair w-100 py-3 fw-bold">Confirm Booking</button>
+                </div>
+            </div>
+
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // UI Elements
+        const serviceInputs = document.querySelectorAll('.service-input');
+        const sizeInputs = document.querySelectorAll('.size-input');
+        const addonInputs = document.querySelectorAll('.addon-input');
+        const timeInputs = document.querySelectorAll('.time-input');
+        const realDateInput = document.getElementById('real-date-input');
+
+        // Summary Elements
+        const summaryService = document.getElementById('summary-service');
+        const summarySize = document.getElementById('summary-size');
+        const summaryDateTime = document.getElementById('summary-datetime');
+        const summaryTotal = document.getElementById('summary-total');
+
+        const sizeMultipliers = { 'small': 1.0, 'medium': 1.2, 'large': 1.4 };
+
+        // Initialize Calendar
+        flatpickr(realDateInput, {
+            inline: true,
+            appendTo: document.getElementById('inline-calendar-container'),
+            minDate: "today",
+            onChange: function(selectedDates, dateStr) {
+                updateSummary();
+            }
+        });
+
+        function updateSummary() {
+            let basePrice = 0;
+            let multiplier = 1.0;
+            let addonsTotal = 0;
+
+            // Service Logic
+            const selectedService = document.querySelector('.service-input:checked');
+            if (selectedService) {
+                basePrice = parseFloat(selectedService.getAttribute('data-price'));
+                summaryService.textContent = selectedService.getAttribute('data-name');
+            }
+
+            // Size Logic
+            const selectedSize = document.querySelector('.size-input:checked');
+            if (selectedSize) {
+                multiplier = sizeMultipliers[selectedSize.value.toLowerCase()] || 1.0;
+                summarySize.textContent = selectedSize.value;
+            }
+
+            // Addons Logic
+            addonInputs.forEach(addon => {
+                if (addon.checked) addonsTotal += parseFloat(addon.getAttribute('data-price'));
+            });
+
+            // Date/Time Logic
+            const selectedTime = document.querySelector('.time-input:checked');
+            let dt = realDateInput.value || "--";
+            if (selectedTime) dt += " @ " + selectedTime.value;
+            summaryDateTime.textContent = dt;
+
+            // Calculation
+            if (selectedService) {
+                const finalTotal = (basePrice * multiplier) + addonsTotal;
+                summaryTotal.textContent = '$' + finalTotal.toFixed(2);
+            }
+        }
+
+        // Add Listeners
+        [...serviceInputs, ...sizeInputs, ...addonInputs, ...timeInputs].forEach(input => {
+            input.addEventListener('change', updateSummary);
+        });
+    });
+</script>
+{% endblock %}

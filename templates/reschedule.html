@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    /* Ensure the calendar matches the Xpair Red theme */
+    .flatpickr-day.selected {
+        background: var(--xpair-red) !important;
+        border-color: var(--xpair-red) !important;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="mb-5">
+        <h2 class="fw-bold mb-1">Reschedule Appointment</h2>
+        <p class="text-muted">Select a new date and time for your booking</p>
+    </div>
+
+    <form action="{{ url_for('reschedule_booking', booking_id=booking.bookingID) }}" method="POST">
+        <div class="row g-4">
+            
+            <div class="col-lg-6">
+                <div class="card xpair-card p-4 h-100 shadow-sm border-0">
+                    <h5 class="fw-bold mb-4">Select New Date</h5>
+                    <input type="hidden" name="date" id="reschedule-date" value="{{ booking.date }}" required>
+                    <div id="reschedule-calendar-container" class="w-100 d-flex justify-content-center"></div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card xpair-card p-4 h-100 shadow-sm border-0">
+                    <h5 class="fw-bold mb-4">Available Time Slots</h5>
+                    <div class="row g-2">
+                        {% for t in ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'] %}
+                        <div class="col-6 col-md-4">
+                            <label class="selectable-card-label w-100">
+                                <input type="radio" name="time" value="{{ t }}" class="selectable-card-input" required
+                                    {% if booking.start_time.strftime('%-I:%M %p') == t %}checked{% endif %}>
+                                
+                                <div class="xpair-selectable-card py-2 text-center" style="min-height: 60px;">
+                                    <span class="fw-bold small">{{ t }}</span>
+                                </div>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mt-auto pt-5">
+                        <button type="submit" class="btn btn-xpair w-100 py-3 fw-bold shadow-sm">Confirm Update</button>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const dateInput = document.getElementById('reschedule-date');
+        
+        flatpickr(dateInput, {
+            inline: true,
+            appendTo: document.getElementById('reschedule-calendar-container'),
+            minDate: "today",
+            defaultDate: "{{ booking.date }}",
+            onChange: function(selectedDates, dateStr) {
+                dateInput.value = dateStr;
+            }
+        });
+    });
+</script>
+{% endblock %}
