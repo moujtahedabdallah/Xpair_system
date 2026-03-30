@@ -18,7 +18,7 @@ class Vehicle(db.Model):
     customerID = db.Column(db.Integer, db.ForeignKey('customer.customerID'), nullable=False)
 
     # Relationships for SQLAlchemy
-    owner = db.relationship('Customer', backref='vehicles')
+    owner = db.relationship('Customer', foreign_keys=[customerID], backref='vehicles')
 
     # Methods
     def add_info(self):
