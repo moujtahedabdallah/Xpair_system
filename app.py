@@ -235,8 +235,136 @@ def reschedule_booking(booking_id):
             return redirect(url_for('reschedule_booking', booking_id=booking.bookingID))
 
     return render_template('reschedule.html', booking=booking)
+# --- UC5 / UC7 (Demo, no auth) ----------------------------------------------
+
+@app.route("/employee/<int:employee_id>/jobs", methods=["GET"])
+def employee_jobs(employee_id: int):
+    employee = Employee.query.get_or_404(employee_id)
+
+    jobs = (
+        Booking.query
+        .filter(Booking.assigned_employee == employee_id)
+        .order_by(Booking.booking_status.asc(), Booking.start_time.asc())
+        .all()
+    )
+    return render_template("employee_jobs.html", employee=employee, jobs=jobs)
 
 
-if __name__ == "__main__":
+@app.route("/employee/<int:employee_id>/jobs/<int:booking_id>", methods=["GET"])
+def employee_job_details(employee_id: int, booking_id: int):
+    employee = Employee.query.get_or_404(employee_id)
+    booking = Booking.query.get_or_404(booking_id)
+
+    if booking.assigned_employee != employee_id:
+        flash("This job is not assigned to that employee (demo check).", "danger")
+        return redirect(url_for("employee_jobs", employee_id=employee_id))
+
+    return render_template("employee_job_details.html", employee=employee, booking=booking)
+
+
+@app.route("/employee/<int:employee_id>/jobs/<int:booking_id>/status", methods=["POST"])
+def employee_update_job_status(employee_id: int, booking_id: int):
+    booking = Booking.query.get_or_404(booking_id)
+    if booking.assigned_employee != employee_id:
+        flash("Not allowed (demo check).", "danger")
+        return redirect(url_for("employee_jobs", employee_id=employee_id))
+
+    new_status = (request.form.get("booking_status") or "").strip()
+    try:
+        booking.update_job_status(new_status)
+        flash(f"Job status updated to '{new_status}'.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+
+    return redirect(url_for("employee_job_details", employee_id=employee_id, booking_id=booking_id))
+
+
+@app.route("/employee/<int:employee_id>/jobs/<int:booking_id>/notes", methods=["POST"])
+def employee_add_job_notes(employee_id: int, booking_id: int):
+    booking = Booking.query.get_or_404(booking_id)
+    if booking.assigned_employee != employee_id:
+        flash("Not allowed (demo check).", "danger")
+        return redirect(url_for("employee_jobs", employee_id=employee_id))
+
+    notes = (request.form.get("job_notes") or "").strip()
+    try:
+        booking.validate_notes(notes)
+        booking.job_notes = notes
+        db.session.commit()
+        flash("Notes saved.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+
+    return redirect(url_for("employee_job_details", employee_id=employee_id, booking_id=booking_id))
+
+
+@app.route("/manager/<int:manager_id>/availability", methods=["GET"])
+def manager_availability(manager_id: int):
+    manager = Manager.query.get_or_404(manager_id)
+
+    submissions = (
+        AvailabilityRecord.query
+        .order_by(AvailabilityRecord.status.asc(), AvailabilityRecord.created_at.desc())
+        .all()
+    )
+
+    return render_template(
+        "manager_availability_list.html",
+        manager=manager,
+        submissions=submissions
+    )
+
+
+@app.route("/manager/<int:manager_id>/availability/<int:availability_id>", methods=["GET"])
+def manager_availability_details(manager_id: int, availability_id: int):
+    manager = Manager.query.get_or_404(manager_id)
+    submission = AvailabilityRecord.query.get_or_404(availability_id)
+
+    return render_template(
+        "manager_availability_details.html",
+        manager=manager,
+        submission=submission
+    )
+
+
+@app.route("/manager/<int:manager_id>/availability/<int:availability_id>/approve", methods=["POST"])
+def manager_approve_availability(manager_id: int, availability_id: int):
+    manager = Manager.query.get_or_404(manager_id)
+
+    try:
+        manager.approve_availability(availability_id)
+        flash("Availability approved.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+
+    return redirect(url_for("manager_availability", manager_id=manager_id))
+
+
+@app.route("/manager/<int:manager_id>/availability/<int:availability_id>/request-changes", methods=["POST"])
+def manager_request_changes(manager_id: int, availability_id: int):
+    manager = Manager.query.get_or_404(manager_id)
+    submission = AvailabilityRecord.query.get_or_404(availability_id)
+
+    notes = (request.form.get("manager_notes") or "").strip()
+    if not notes:
+        flash("Please add notes when requesting changes.", "danger")
+        return redirect(url_for("manager_availability_details", manager_id=manager_id, availability_id=availability_id))
+
+    try:
+        submission.status = "changes_requested"
+        submission.manager_notes = notes
+        submission.managerID = manager.managerID
+        submission.reviewed_at = datetime.now()
+        db.session.commit()
+        flash("Changes requested from employee.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+
+    return redirect(url_for("manager_availability", manager_id=manager_id))
+    if __name__ == "__main__":
     # Standard development server on port 5000
     app.run(debug=True, port=5000)
