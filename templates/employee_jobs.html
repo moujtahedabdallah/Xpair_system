@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Employee Jobs{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex align-items-end justify-content-between mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">My Jobs (UC5)</h2>
+      <p class="text-muted mb-0">Demo Employee ID: {{ employee.employeeID }}</p>
+    </div>
+  </div>
+
+  <div class="card xpair-card overflow-hidden">
+    <div class="p-4 border-bottom bg-white">
+      <h5 class="fw-bold mb-0">Assigned Jobs</h5>
+    </div>
+
+    <div class="list-group list-group-flush">
+      {% if jobs|length == 0 %}
+        <div class="p-4 text-muted">No jobs assigned.</div>
+      {% endif %}
+
+      {% for job in jobs %}
+        <a class="list-group-item list-group-item-action p-4"
+           href="{{ url_for('employee_job_details', employee_id=employee.employeeID, booking_id=job.bookingID) }}">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-bold">JOB-{{ job.bookingID }}</div>
+              <div class="text-muted small">
+                {{ job.date }} • {{ job.start_time.strftime('%I:%M %p') }} - {{ job.end_time.strftime('%I:%M %p') }}
+              </div>
+              <div class="text-muted small mt-1">
+                ServiceID: {{ job.serviceID if job.serviceID else "—" }} • CustomerID: {{ job.customerID if job.customerID else "—" }}
+              </div>
+            </div>
+
+            <span class="badge rounded-pill
+              {% if job.booking_status in ['completed'] %} bg-success-subtle text-success
+              {% elif job.booking_status in ['in_progress'] %} bg-warning-subtle text-warning
+              {% elif job.booking_status in ['on_hold'] %} bg-danger-subtle text-danger
+              {% else %} bg-secondary-subtle text-secondary
+              {% endif %}">
+              {{ job.booking_status }}
+            </span>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

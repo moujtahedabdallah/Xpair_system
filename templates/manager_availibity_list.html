@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Availability Review{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex align-items-end justify-content-between mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">Availability Review (UC7)</h2>
+      <p class="text-muted mb-0">Demo Manager ID: {{ manager.managerID }}</p>
+    </div>
+  </div>
+
+  <div class="card xpair-card overflow-hidden">
+    <div class="p-4 border-bottom bg-white">
+      <h5 class="fw-bold mb-0">Submissions</h5>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Availability ID</th>
+            <th>Employee ID</th>
+            <th>Period</th>
+            <th>Day</th>
+            <th>Time</th>
+            <th>Status</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in submissions %}
+          <tr>
+            <td class="fw-bold">SUB-{{ s.availabilityID }}</td>
+            <td>{{ s.employeeID }}</td>
+            <td>{{ s.periodID }}</td>
+            <td>{{ s.day }}</td>
+            <td>
+              {{ s.start_time.strftime('%I:%M %p') }} - {{ s.end_time.strftime('%I:%M %p') }}
+            </td>
+            <td>
+              <span class="badge rounded-pill
+                {% if s.status == 'approved' %} bg-success-subtle text-success
+                {% elif s.status == 'changes_requested' %} bg-danger-subtle text-danger
+                {% else %} bg-warning-subtle text-warning
+                {% endif %}">
+                {{ s.status }}
+              </span>
+            </td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-dark"
+                 href="{{ url_for('manager_availability_details', manager_id=manager.managerID, availability_id=s.availabilityID) }}">
+                Review
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+
+          {% if submissions|length == 0 %}
+          <tr>
+            <td colspan="7" class="text-muted p-4">No submissions found.</td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

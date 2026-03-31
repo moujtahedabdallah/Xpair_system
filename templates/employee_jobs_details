@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Job Details{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
+     href="{{ url_for('employee_jobs', employee_id=employee.employeeID) }}">
+    <i class="bi bi-arrow-left me-2"></i> Back to Jobs
+  </a>
+
+  <div class="d-flex justify-content-between align-items-end mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">Job Details (UC5)</h2>
+      <p class="text-muted mb-0">JOB-{{ booking.bookingID }}</p>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card xpair-card p-4 mb-4">
+        <h5 class="fw-bold mb-3">Job Info</h5>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Date</div>
+            <div class="fw-bold">{{ booking.date }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Time</div>
+            <div class="fw-bold">{{ booking.start_time.strftime('%I:%M %p') }} - {{ booking.end_time.strftime('%I:%M %p') }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Booking Status</div>
+            <div class="fw-bold">{{ booking.booking_status }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Blocked?</div>
+            <div class="fw-bold">{{ "Yes" if booking.is_blocked else "No" }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card xpair-card p-4 mb-4">
+        <h5 class="fw-bold mb-3">Update Status</h5>
+        <form method="POST"
+              action="{{ url_for('employee_update_job_status', employee_id=employee.employeeID, booking_id=booking.bookingID) }}">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-8">
+              <label class="form-label fw-bold small text-muted">Select status</label>
+              <select name="booking_status" class="form-select">
+                {% for s in ['assigned','in_progress','on_hold','completed','cancelled'] %}
+                  <option value="{{ s }}" {% if booking.booking_status == s %}selected{% endif %}>
+                    {{ s }}
+                  </option>
+                {% endfor %}
+              </select>
+              <div class="form-text">Matches Booking.validate_job_status() allowed values.</div>
+            </div>
+            <div class="col-md-4">
+              <button class="btn btn-xpair w-100 py-2 fw-bold">Save Status</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="card xpair-card p-4">
+        <h5 class="fw-bold mb-3">Job Notes</h5>
+        <form method="POST"
+              action="{{ url_for('employee_add_job_notes', employee_id=employee.employeeID, booking_id=booking.bookingID) }}">
+          <textarea class="form-control bg-light border-0" rows="6" name="job_notes"
+                    placeholder="Enter detailed notes...">{{ booking.job_notes or "" }}</textarea>
+          <div class="d-flex justify-content-end mt-3">
+            <button class="btn btn-dark px-4 fw-bold">Save Notes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card xpair-card p-4 sticky-top" style="top: 100px;">
+        <h5 class="fw-bold mb-3">Uploads (placeholder)</h5>
+        <div class="text-muted small mb-3">
+          Not implementing actual file upload yet (portal/auth later).
+        </div>
+
+        <div class="mb-3">
+          <div class="text-muted small fw-bold text-uppercase">Before Images</div>
+          <div class="fw-bold">{{ booking.before_images or "—" }}</div>
+        </div>
+        <div class="mb-3">
+          <div class="text-muted small fw-bold text-uppercase">After Images</div>
+          <div class="fw-bold">{{ booking.after_images or "—" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

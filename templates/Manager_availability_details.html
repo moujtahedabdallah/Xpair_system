@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Review Availability{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
+     href="{{ url_for('manager_availability', manager_id=manager.managerID) }}">
+    <i class="bi bi-arrow-left me-2"></i> Back to list
+  </a>
+
+  <div class="d-flex justify-content-between align-items-end mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">Review Availability (UC7)</h2>
+      <p class="text-muted mb-0">SUB-{{ submission.availabilityID }}</p>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card xpair-card p-4">
+        <h5 class="fw-bold mb-3">Submission Details</h5>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Employee</div>
+            <div class="fw-bold">{{ submission.employeeID }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Period</div>
+            <div class="fw-bold">{{ submission.periodID }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Day</div>
+            <div class="fw-bold">{{ submission.day }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Time</div>
+            <div class="fw-bold">
+              {{ submission.start_time.strftime('%I:%M %p') }} - {{ submission.end_time.strftime('%I:%M %p') }}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Status</div>
+            <div class="fw-bold">{{ submission.status }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Reviewed At</div>
+            <div class="fw-bold">{{ submission.reviewed_at or "—" }}</div>
+          </div>
+        </div>
+
+        {% if submission.manager_notes %}
+          <hr class="my-4">
+          <div class="alert alert-warning mb-0">
+            <div class="fw-bold mb-1">Manager Notes</div>
+            <div>{{ submission.manager_notes }}</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card xpair-card p-4 sticky-top" style="top: 100px;">
+        <h5 class="fw-bold mb-3">Actions</h5>
+
+        <form method="POST"
+              action="{{ url_for('manager_approve_availability', manager_id=manager.managerID, availability_id=submission.availabilityID) }}">
+          <button class="btn btn-success w-100 py-2 fw-bold mb-2">
+            <i class="bi bi-check2-circle me-2"></i> Approve
+          </button>
+        </form>
+
+        <form method="POST"
+              action="{{ url_for('manager_request_changes', manager_id=manager.managerID, availability_id=submission.availabilityID) }}">
+          <label class="form-label fw-bold small text-muted">Request changes (notes required)</label>
+          <textarea class="form-control bg-light border-0" rows="5" name="manager_notes"
+                    placeholder="What needs to be fixed?"></textarea>
+          <button class="btn btn-dark w-100 py-2 fw-bold mt-2">
+            <i class="bi bi-pencil-square me-2"></i> Request Changes
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
