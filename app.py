@@ -365,6 +365,6 @@ def manager_request_changes(manager_id: int, availability_id: int):
         flash(str(e), "danger")
 
     return redirect(url_for("manager_availability", manager_id=manager_id))
-    if __name__ == "__main__":
-    # Standard development server on port 5000
+
+if __name__ == "__main__":
     app.run(debug=True, port=5000)
