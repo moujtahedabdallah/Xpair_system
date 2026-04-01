@@ -3,4 +3,5 @@
 .DS_Store
 .env
 __pycache__/
-instance/xpair_detailing.db
+instance/
+*.db

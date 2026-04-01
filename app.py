@@ -21,7 +21,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
-# Database: SQLite file will be created in the root folder
+# Database: SQLite file will be created in the /instance folder (Flask default)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///xpair_detailing.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -35,8 +35,7 @@ app.config['MAIL_DEFAULT_SENDER'] = 'noreply@xpairdetailing.com'
 app.config['MAIL_SUPPRESS_SEND'] = True  # This "mutes" the email but keeps the app running
 
 # Security: Required for Flask to handle session-based "Flash" messages
-app.config['SECRET_KEY'] = 'xpair_secret_key_2026' 
-
+app.config['SECRET_KEY'] = 'xpair_secret_key_2026'
 
 
 # --- INITIALIZATION ---
@@ -52,11 +51,12 @@ with app.app_context():
     except Exception as e:
         print(f"❌ ERROR: Database sync failed: {e}")
 
+
 # --- ROUTES ---
 
 @app.route('/')
 def home():
-    """ 
+    """
     Route: Landing Page (Homepage)
     Displays the "Xpair Detailing" hero and loops through the service catalog.
     """
@@ -66,16 +66,16 @@ def home():
 
 @app.route('/book', methods=['GET', 'POST'])
 def booking_page():
-    """ 
+    """
     Route: Booking Engine (Use Case 3)
     GET: Displays the interactive Figma-style booking form.
     POST: Processes the submission, creates a Customer/Vehicle, and saves the Booking.
     """
-    
+
     # --- HANDLING PAGE LOAD (GET) ---
     if request.method == 'GET':
         all_services = Service.query.all()
-        
+
         # This dictionary is used to populate the Add-ons list in book.html
         add_ons = {
             "UV Protection for Plastics": 25.00,
@@ -88,7 +88,7 @@ def booking_page():
             "Black Surface Restoration (Tires)": 35.00,
             "Black Surface Restoration (Plastics)": 40.00
         }
-        
+
         return render_template('book.html', services=all_services, addons=add_ons)
 
     # --- HANDLING FORM SUBMISSION (POST) ---
@@ -98,39 +98,37 @@ def booking_page():
         l_name = request.form.get('last_name')
         email = request.form.get('email')
         phone = request.form.get('phone')
-        
+
         # 2. Extract Booking Details
         service_id = int(request.form.get('serviceID'))
-        vehicle_size = request.form.get('vehicleSize').lower() # Sync with src validation
-        date_str = request.form.get('date') # From Flatpickr
-        time_str = request.form.get('time') # From our grid selection
+        vehicle_size = request.form.get('vehicleSize').lower()  # Sync with src validation
+        date_str = request.form.get('date')  # From Flatpickr
+        time_str = request.form.get('time')  # From our grid selection
         instructions = request.form.get('notes')
-        
+
         # Capture Add-ons list and join into a comma-separated string
         addons_list = request.form.getlist('addons')
-        
+
         # 3. Handle Time Logic (Converting strings to Python DateTime objects)
         try:
             # Combine Date and Time strings (e.g., "2026-03-30 9:00 AM")
             start_dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %I:%M %p")
-            
+
             # Fetch the service to calculate the correct end_time
-            selected_service = Service.query.get(service_id)
+            selected_service = db.session.get(Service, service_id)
             end_dt = start_dt + timedelta(minutes=selected_service.service_duration)
         except Exception as e:
             flash(f"Invalid Date or Time selection: {e}", "danger")
             return redirect(url_for('booking_page'))
 
         # 4. Integrate UC1: Handle Customer/Person record
-        # --- HANDLE CUSTOMER (Use Case 1 Integration) ---
         customer = Customer.query.filter_by(email=email).first()
-        
+
         if not customer:
-            # Use the variables we got from request.form.get()
             customer = Customer(
-                first_name=f_name,     # Now it uses the actual form input!
-                last_name=l_name,      # Now it uses the actual form input!
-                email=email, 
+                first_name=f_name,
+                last_name=l_name,
+                email=email,
                 phone=phone,
                 password="guest_placeholder_123",
                 role="customer",
@@ -140,16 +138,15 @@ def booking_page():
             db.session.commit()
 
         # 5. Handle Vehicle record
-        # Use the phone number or a timestamp to make the plate unique for each guest
         unique_plate = f"GUEST-{phone[-4:]}-{datetime.now().strftime('%S')}"
 
         new_vehicle = Vehicle(
-            make="Guest", 
-            model="Vehicle", 
-            year=2026, 
-            plate=unique_plate,   # This will now be unique every time!
-            type="Car",          
-            size=vehicle_size, 
+            make="Guest",
+            model="Vehicle",
+            year=2026,
+            plate=unique_plate,
+            type="Car",
+            size=vehicle_size,
             customerID=customer.customerID
         )
         db.session.add(new_vehicle)
@@ -160,7 +157,6 @@ def booking_page():
         db.session.commit()
 
         # 6. Integrate UC3: Create the Booking Object
-        # Matches your exact 'src' attributes: booking_status, start_time, etc.
         new_booking = Booking(
             customerID=customer.customerID,
             serviceID=service_id,
@@ -174,19 +170,19 @@ def booking_page():
 
         try:
             db.session.add(new_booking)
-            db.session.flush() 
+            db.session.flush()
             new_booking.generate_booking_summary(selected_add_ons=addons_list)
             db.session.commit()
-            
-            # REDIRECT to the success page with the ID we just created
+
             return redirect(url_for('booking_success', booking_id=new_booking.bookingID))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f"Database Error: {str(e)}", "danger")
             return redirect(url_for('booking_page'))
 
-# --- NEW ROUTES FOR MANAGE/RESCHEDULE/CANCEL ---
+
+# --- ROUTES FOR MANAGE/RESCHEDULE/CANCEL ---
 
 @app.route('/booking-success/<int:booking_id>')
 def booking_success(booking_id):
@@ -201,46 +197,38 @@ def manage_booking(booking_id):
 @app.route('/cancel/<int:booking_id>', methods=['POST'])
 def cancel_booking(booking_id):
     booking = Booking.query.get_or_404(booking_id)
-    # Use your class method!
-    booking.cancel() 
-    flash("Your booking has been successfully cancelled.", "info") # We'll turn this into a toast
+    booking.cancel()
+    flash("Your booking has been successfully cancelled.", "info")
     return redirect(url_for('home'))
 
 @app.route('/reschedule/<int:booking_id>', methods=['GET', 'POST'])
 def reschedule_booking(booking_id):
     booking = Booking.query.get_or_404(booking_id)
-    
+
     if request.method == 'POST':
-        # 1. Get the new data from the Reschedule Form
         new_date_str = request.form.get('date')
         new_time_str = request.form.get('time')
-        
+
         try:
-            # 2. Convert strings to Python DateTime objects
             new_start = datetime.strptime(f"{new_date_str} {new_time_str}", "%Y-%m-%d %I:%M %p")
             new_end = new_start + timedelta(minutes=booking.service.service_duration)
-            
-            # 3. Use YOUR Class Method from src/booking.py
             booking.reschedule(new_start, new_end)
-            
-            # 4. Trigger the Toast Notification (Attachment 5)
             flash(f"Your appointment has been rescheduled to {new_date_str} at {new_time_str}.", "success")
-            
-            # 5. Send them back to the Manage page to see the update
             return redirect(url_for('manage_booking', booking_id=booking.bookingID))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f"Error rescheduling: {str(e)}", "danger")
             return redirect(url_for('reschedule_booking', booking_id=booking.bookingID))
 
     return render_template('reschedule.html', booking=booking)
+
+
 # --- UC5 / UC7 (Demo, no auth) ----------------------------------------------
 
 @app.route("/employee/<int:employee_id>/jobs", methods=["GET"])
 def employee_jobs(employee_id: int):
     employee = Employee.query.get_or_404(employee_id)
-
     jobs = (
         Booking.query
         .filter(Booking.assigned_employee == employee_id)
@@ -303,43 +291,30 @@ def employee_add_job_notes(employee_id: int, booking_id: int):
 @app.route("/manager/<int:manager_id>/availability", methods=["GET"])
 def manager_availability(manager_id: int):
     manager = Manager.query.get_or_404(manager_id)
-
     submissions = (
         AvailabilityRecord.query
         .order_by(AvailabilityRecord.status.asc(), AvailabilityRecord.created_at.desc())
         .all()
     )
-
-    return render_template(
-        "manager_availability_list.html",
-        manager=manager,
-        submissions=submissions
-    )
+    return render_template("manager_availability_list.html", manager=manager, submissions=submissions)
 
 
 @app.route("/manager/<int:manager_id>/availability/<int:availability_id>", methods=["GET"])
 def manager_availability_details(manager_id: int, availability_id: int):
     manager = Manager.query.get_or_404(manager_id)
     submission = AvailabilityRecord.query.get_or_404(availability_id)
-
-    return render_template(
-        "manager_availability_details.html",
-        manager=manager,
-        submission=submission
-    )
+    return render_template("manager_availability_details.html", manager=manager, submission=submission)
 
 
 @app.route("/manager/<int:manager_id>/availability/<int:availability_id>/approve", methods=["POST"])
 def manager_approve_availability(manager_id: int, availability_id: int):
     manager = Manager.query.get_or_404(manager_id)
-
     try:
         manager.approve_availability(availability_id)
         flash("Availability approved.", "success")
     except Exception as e:
         db.session.rollback()
         flash(str(e), "danger")
-
     return redirect(url_for("manager_availability", manager_id=manager_id))
 
 
@@ -365,6 +340,7 @@ def manager_request_changes(manager_id: int, availability_id: int):
         flash(str(e), "danger")
 
     return redirect(url_for("manager_availability", manager_id=manager_id))
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

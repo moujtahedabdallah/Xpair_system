@@ -53,7 +53,7 @@ class Employee(Person):
 
     def update_job_status(self, bookingID, booking_status):
         # Updates the status of an assigned booking
-        booking = Booking.query.get(bookingID)
+        booking = db.session.get(Booking, bookingID)
         if not booking:
             raise ValueError(f"Booking with ID {bookingID} not found.")
         if booking.assigned_employee != self.employeeID:
@@ -65,7 +65,7 @@ class Employee(Person):
 
     def upload_job_images(self, bookingID, before_images=None, after_images=None):
         # Uploads before and/or after images for a booking
-        booking = Booking.query.get(bookingID)
+        booking = db.session.get(Booking, bookingID)
         if not booking:
             raise ValueError(f"Booking with ID {bookingID} not found.")
         if booking.assigned_employee != self.employeeID:
@@ -79,7 +79,7 @@ class Employee(Person):
 
     def add_job_notes(self, bookingID, job_notes):
         # Adds notes to an assigned booking
-        booking = Booking.query.get(bookingID)
+        booking = db.session.get(Booking, bookingID)
         
         if not booking:
             raise ValueError(f"Booking with ID {bookingID} not found.")
@@ -92,7 +92,7 @@ class Employee(Person):
 
     def view_job_details(self, bookingID):
         # Fetch the data from the database
-        booking = Booking.query.get(bookingID)
+        booking = db.session.get(Booking, bookingID)
             
         # Verify the job actually exists
         if not booking:
@@ -107,7 +107,7 @@ class Employee(Person):
     
     def block_job(self, bookingID, block_reason) -> bool:
         # Fetch the data
-        booking = Booking.query.get(bookingID)
+        booking = db.session.get(Booking, bookingID)
 
         # Verify the job actually exists
         if not booking:

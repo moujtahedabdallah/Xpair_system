@@ -22,7 +22,7 @@ class Manager(Person):
     # Methods
     def approve_availability(self, availabilityID) -> bool:
         # Approves an employee's availability record
-        record = AvailabilityRecord.query.get(availabilityID)
+        record = db.session.get(AvailabilityRecord, availabilityID)
         if not record:
             raise ValueError(f"AvailabilityRecord with ID {availabilityID} not found.")
         record.mark_approved()
@@ -37,7 +37,7 @@ class Manager(Person):
     
     def request_changes(self, availabilityID, notes) -> bool:
         # Requests changes to an employee's availability record
-        record = AvailabilityRecord.query.get(availabilityID)
+        record = db.session.get(AvailabilityRecord, availabilityID)
         if not record:
             raise ValueError(f"AvailabilityRecord with ID {availabilityID} not found.")
         record.mark_changes_requested(notes)
@@ -82,7 +82,7 @@ class Manager(Person):
 
     def update_service_price(self, serviceID, base_price):
         # Updates the base price of a service
-        service = Service.query.get(serviceID)
+        service = db.session.get(Service, serviceID)
         if not service:
             raise ValueError(f"Service with ID {serviceID} not found.")
         service.base_price = base_price
@@ -92,7 +92,7 @@ class Manager(Person):
 
     def configure_add_on_options(self, serviceID, available_add_ons):
         # Updates the available add-ons for a service
-        service = Service.query.get(serviceID)
+        service = db.session.get(Service, serviceID)
         if not service:
             raise ValueError(f"Service with ID {serviceID} not found.")
         service.available_add_ons = available_add_ons
@@ -137,7 +137,7 @@ class Manager(Person):
     
     def force_change_appointment_time(self, bookingID, start_time, end_time):
         # Forces a reschedule of a booking to new start and end times
-        booking = Booking.query.get(bookingID)
+        booking = db.session.get(Booking, bookingID)
         if not booking:
             raise ValueError(f"Booking with ID {bookingID} not found.")
         booking.reschedule(start_time, end_time)
@@ -146,7 +146,7 @@ class Manager(Person):
 
     def process_cancellation(self, bookingID) -> bool:
         # Cancels a booking on behalf of the manager
-        booking = Booking.query.get(bookingID)
+        booking = db.session.get(Booking, bookingID)
         if not booking:
             raise ValueError(f"Booking with ID {bookingID} not found.")
         booking.cancel()
@@ -200,7 +200,7 @@ class Manager(Person):
 
     def assign_employee(self, bookingID, employeeID):
         # Assigns an employee to a booking
-        booking = Booking.query.get(bookingID)
+        booking = db.session.get(Booking, bookingID)
         if not booking:
             raise ValueError(f"Booking with ID {bookingID} not found.")
         booking.assigned_employee = employeeID
@@ -210,6 +210,6 @@ class Manager(Person):
 
         # Triggers email notification
         from .employee import Employee
-        assigned_emp = Employee.query.get(employeeID)
+        assigned_emp = db.session.get(Employee, employeeID)
         from .notification_service import NotificationService
         NotificationService().notify(recipient=assigned_emp, event='job_assigned', occupant=booking)

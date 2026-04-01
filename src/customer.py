@@ -1,9 +1,5 @@
 from .database import db
 from .person import Person
-from .booking import Booking
-from .service import Service
-from .vehicle import Vehicle
-
 
 class Customer(Person):
     # Inherits from person
@@ -21,6 +17,7 @@ class Customer(Person):
 
     # Methods
     def add_vehicle(self, make, model, year, plate, size = "medium", type = "car"):
+        from .vehicle import Vehicle # solves the problem of circular imports by importing here instead of at the top of the file
         # Lets customer add a car to their profile
         added_car = Vehicle(
             make = make,
@@ -38,37 +35,42 @@ class Customer(Person):
 
 
     def view_catalog(self):
+        from .service import Service # solves the problem of circular imports by importing here instead of at the top of the file
         # Returns all available services from the catalog
         return Service.query.all()
 
     def select_service_type(self, serviceID):
+        from .service import Service # solves the problem of circular imports by importing here instead of at the top of the file
         # Selects and returns a service type from the catalog
-        service = Service.query.get(serviceID)
+        service = db.session.get(Service, serviceID)
         if not service:
             raise ValueError(f"Service with ID {serviceID} not found.")
         return service
 
     def select_vehicle_size(self, serviceID, size):
+        from .vehicle import Vehicle # solves the problem of circular imports by importing here instead of at the top of the file
         # Validates the requested vehicle size and updates the customer's vehicle record
         valid_sizes = ['small', 'medium', 'large']
         if size not in valid_sizes:
             raise ValueError(f"Invalid size '{size}'. Must be one of: {valid_sizes}")
         if self.vehicle_id:
-            vehicle = Vehicle.query.get(self.vehicle_id)
+            vehicle = db.session.get(Vehicle, self.vehicle_id)
             if vehicle:
                 vehicle.update_size(size)
         return size
 
     def request_and_review_quote(self, serviceID, selected_add_ons):
+        from .service import Service # solves the problem of circular imports by importing here instead of at the top of the file
+        from .vehicle import Vehicle # solves the problem of circular imports by importing here instead of at the top of the file
         # Calculates and returns a price quote for the selected service and add-ons
-        service = Service.query.get(serviceID)
+        service = db.session.get(Service, serviceID)
         if not service:
             raise ValueError(f"Service with ID {serviceID} not found.")
 
         # Default to medium, but changes it if the customer has a saved vehicle
         vehicle_size = 'medium'  # default fallback
         if self.vehicle_id:
-            vehicle = Vehicle.query.get(self.vehicle_id)
+            vehicle = db.session.get(Vehicle, self.vehicle_id)
             if vehicle and vehicle.size:
                 vehicle_size = vehicle.size
 
@@ -82,8 +84,9 @@ class Customer(Person):
         }
 
     def book_service(self, serviceID, vehicleID, startTime):
+        from .booking import Booking # solves the problem of circular imports by importing here instead of at the top of the file
         # Creates and saves a new booking for the customer
-        service = Service.query.get(serviceID)
+        service = db.session.get(Service, serviceID)
         if not service:
             raise ValueError(f"Service with ID {serviceID} not found.")
 
@@ -118,15 +121,17 @@ class Customer(Person):
         return booking
 
     def manage_booking(self, bookingID):
+        from .booking import Booking # solves the problem of circular imports by importing here instead of at the top of the file
         # Returns the booking details for a given booking ID belonging to this customer
-        booking = Booking.query.get(bookingID)
+        booking = db.session.get(Booking, bookingID)
         if not booking:
             raise ValueError(f"Booking with ID {bookingID} not found.")
         return booking
 
     def cancel_booking(self, bookingID) -> bool:
+        from .booking import Booking # solves the problem of circular imports by importing here instead of at the top of the file
         # Cancels an existing booking for the customer
-        booking = Booking.query.get(bookingID)
+        booking = db.session.get(Booking, bookingID)
         if not booking:
             raise ValueError(f"Booking with ID {bookingID} not found.")
         if booking.booking_status == 'cancelled':
