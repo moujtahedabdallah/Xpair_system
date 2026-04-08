@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_mail import Mail
 from src.database import db
 
@@ -56,21 +56,13 @@ with app.app_context():
 
 @app.route('/')
 def home():
-    """
-    Route: Landing Page (Homepage)
-    Displays the "Xpair Detailing" hero and loops through the service catalog.
-    """
+
     all_services = Service.query.all()
     return render_template('index.html', services=all_services)
 
 
 @app.route('/book', methods=['GET', 'POST'])
 def booking_page():
-    """
-    Route: Booking Engine (Use Case 3)
-    GET: Displays the interactive Figma-style booking form.
-    POST: Processes the submission, creates a Customer/Vehicle, and saves the Booking.
-    """
 
     # --- HANDLING PAGE LOAD (GET) ---
     if request.method == 'GET':
@@ -93,11 +85,14 @@ def booking_page():
 
     # --- HANDLING FORM SUBMISSION (POST) ---
     if request.method == 'POST':
-        # 1. Extract Guest/Customer Data from Form
-        f_name = request.form.get('first_name')
-        l_name = request.form.get('last_name')
-        email = request.form.get('email')
-        phone = request.form.get('phone')
+        # 1. Extract guest data only if not logged in as customer
+        if session.get('user_role') == 'customer':
+            f_name = l_name = email = phone = None
+        else:
+            f_name = request.form.get('first_name')
+            l_name = request.form.get('last_name')
+            email  = request.form.get('email')
+            phone  = request.form.get('phone')
 
         # 2. Extract Booking Details
         service_id = int(request.form.get('serviceID'))
@@ -121,40 +116,51 @@ def booking_page():
             flash(f"Invalid Date or Time selection: {e}", "danger")
             return redirect(url_for('booking_page'))
 
-        # 4. Integrate UC1: Handle Customer/Person record
-        customer = Customer.query.filter_by(email=email).first()
-
-        if not customer:
-            customer = Customer(
-                first_name=f_name,
-                last_name=l_name,
-                email=email,
-                phone=phone,
-                password="guest_placeholder_123",
-                role="customer",
-                address="Guest Checkout"
-            )
-            db.session.add(customer)
-            db.session.commit()
+        # 4. Handle Customer record
+        if session.get('user_role') == 'customer':
+            customer = Customer.query.get(session['user_id'])
+        else:
+            customer = Customer.query.filter_by(email=email).first()
+            if not customer:
+                customer = Customer(
+                    first_name=f_name,
+                    last_name=l_name,
+                    email=email,
+                    phone=phone,
+                    password=generate_password_hash("guest_placeholder_123"),
+                    role="customer",
+                    address="Guest Checkout"
+                )
+                db.session.add(customer)
+                db.session.commit()
 
         # 5. Handle Vehicle record
-        unique_plate = f"GUEST-{phone[-4:]}-{datetime.now().strftime('%S')}"
+        new_vehicle = None
 
-        new_vehicle = Vehicle(
-            make="Guest",
-            model="Vehicle",
-            year=2026,
-            plate=unique_plate,
-            type="Car",
-            size=vehicle_size,
-            customerID=customer.customerID
-        )
-        db.session.add(new_vehicle)
-        db.session.commit()
+        if session.get('user_role') == 'customer' and customer.vehicle_id:
+            new_vehicle = Vehicle.query.get(customer.vehicle_id)
+            if new_vehicle:
+                new_vehicle.update_size(vehicle_size)
+            else:
+                # vehicle_id was stale — clear it so the else block runs
+                customer.vehicle_id = None
 
-        # Update the customer's vehicle_id to track this latest vehicle
-        customer.vehicle_id = new_vehicle.vehicleID
-        db.session.commit()
+        if new_vehicle is None:
+            phone_suffix = phone[-4:] if phone else "0000"
+            unique_plate = f"GUEST-{phone_suffix}-{datetime.now().strftime('%S')}"
+            new_vehicle = Vehicle(
+                make="Guest",
+                model="Vehicle",
+                year=2026,
+                plate=unique_plate,
+                type="Car",
+                size=vehicle_size,
+                customerID=customer.customerID
+            )
+            db.session.add(new_vehicle)
+            db.session.commit()
+            customer.vehicle_id = new_vehicle.vehicleID
+            db.session.commit()
 
         # 6. Integrate UC3: Create the Booking Object
         new_booking = Booking(
@@ -363,5 +369,313 @@ def demo_manager_redirect():
         flash("No managers exist yet. Run seed_data.py (or create a manager) to view UC7.", "danger")
         return redirect(url_for("home"))
     return redirect(url_for("manager_availability", manager_id=manager.managerID))
+
+# --- UC1: AUTH ROUTES (Login / Signup / Logout / Vehicle Info) ---
+
+from werkzeug.security import generate_password_hash
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """
+    Route: Login Page (Use Case 1)
+    GET:  Renders the login form (Customer or Staff tab).
+    POST: Authenticates via Person.authenticate_user() (checks hashed password),
+          sets session, redirects by role.
+    """
+    if request.method == 'POST':
+        role_tab   = request.form.get('role_tab')
+        email      = request.form.get('email', '').strip().lower()
+        password   = request.form.get('password', '').strip()
+        department = request.form.get('department', '')
+
+        if role_tab == 'customer':
+            user = Customer.query.filter_by(email=email).first()
+            if user and user.authenticate_user(password):
+                session['user_id']   = user.customerID
+                session['user_role'] = 'customer'
+                session['user_name'] = user.first_name
+                # Customer login success — add this line before the redirect
+                flash("Welcome back to Xpair Detailing!", "success")
+                return redirect(url_for('home'))
+            flash("Invalid email or password.", "danger")
+            return redirect(url_for('login'))
+
+        else:  # staff tab
+            if department == 'management':
+                user = Manager.query.filter_by(email=email).first()
+                if user and user.authenticate_user(password):
+                    session['user_id']   = user.managerID
+                    session['user_role'] = 'manager'
+                    session['user_name'] = user.first_name
+                    # Manager login success — add before redirect
+                    flash("Welcome back to Xpair Detailing!", "success")
+                    return redirect(url_for('manager_availability', manager_id=user.managerID))
+                flash("Invalid email, password, or department.", "danger")
+                return redirect(url_for('login'))
+
+            elif department == 'employee':
+                user = Employee.query.filter_by(email=email).first()
+                if user and user.authenticate_user(password):
+                    session['user_id']   = user.employeeID
+                    session['user_role'] = 'employee'
+                    session['user_name'] = user.first_name
+                    # Employee login success — add before redirect
+                    flash("Welcome back to Xpair Detailing!", "success")
+                    return redirect(url_for('employee_jobs', employee_id=user.employeeID))
+                flash("Invalid email, password, or department.", "danger")
+                return redirect(url_for('login'))
+
+            else:
+                flash("Please select a department.", "danger")
+                return redirect(url_for('login'))
+
+    return render_template('login.html')
+
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+   
+    if request.method == 'POST':
+        role_tab   = request.form.get('role_tab')
+        f_name = request.form.get('first_name', '').strip()
+        l_name = request.form.get('last_name', '').strip()
+        email      = request.form.get('email', '').strip().lower()
+        phone      = request.form.get('phone', '').strip()
+        password   = request.form.get('password', '').strip()
+        confirm_pw = request.form.get('confirm_password', '').strip()
+        department = request.form.get('department', '')
+
+        # Validation
+        if password != confirm_pw:
+            flash("Passwords do not match.", "danger")
+            return redirect(url_for('signup'))
+
+        if len(password) < 6:
+            flash("Password must be at least 6 characters.", "danger")
+            return redirect(url_for('signup'))
+
+
+        hashed_pw = generate_password_hash(password)
+
+        if role_tab == 'customer':
+            if Customer.query.filter_by(email=email).first():
+                flash("An account with that email already exists.", "danger")
+                return redirect(url_for('signup'))
+
+            new_user = Customer(
+                first_name=f_name,
+                last_name=l_name,
+                email=email,
+                phone=phone,
+                password=hashed_pw,
+                role='customer',
+                address=''
+            )
+            # create_profile() handles db.session.add, commit, and welcome email
+            new_user.create_profile()
+            flash("Account created! Welcome to Xpair Detailing.", "success")
+
+
+            session['user_id']   = new_user.customerID
+            session['user_role'] = 'customer'
+            session['user_name'] = new_user.first_name
+            return redirect(url_for('vehicle_info', customer_id=new_user.customerID))
+
+        elif role_tab == 'staff':
+            if not department:
+                flash("Please select a department.", "danger")
+                return redirect(url_for('signup'))
+
+            if department == 'employee':
+                if Employee.query.filter_by(email=email).first():
+                    flash("An account with that email already exists.", "danger")
+                    return redirect(url_for('signup'))
+
+                new_user = Employee(
+                    first_name=f_name,
+                    last_name=l_name,
+                    email=email,
+                    phone=phone,
+                    password=hashed_pw,
+                    role='employee',
+                    experience_level='junior',
+                    position='Detailer',
+                    salary=18.50,
+                    working_hours=40.0
+                )
+                new_user.create_profile()
+                flash("Account created! Welcome to Xpair Detailing.", "success")
+
+
+                session['user_id']   = new_user.employeeID
+                session['user_role'] = 'employee'
+                session['user_name'] = new_user.first_name
+                return redirect(url_for('employee_jobs', employee_id=new_user.employeeID))
+
+            elif department == 'management':
+                if Manager.query.filter_by(email=email).first():
+                    flash("An account with that email already exists.", "danger")
+                    return redirect(url_for('signup'))
+
+                new_user = Manager(
+                    first_name=f_name,
+                    last_name=l_name,
+                    email=email,
+                    phone=phone,
+                    password=hashed_pw,
+                    max_car_capacity=5
+                )
+                new_user.create_profile()
+                flash("Account created! Welcome to Xpair Detailing.", "success")
+
+                session['user_id']   = new_user.managerID
+                session['user_role'] = 'manager'
+                session['user_name'] = new_user.first_name
+                return redirect(url_for('manager_availability', manager_id=new_user.managerID))
+
+    return render_template('signup.html')
+
+
+@app.route('/vehicle-info/<int:customer_id>', methods=['GET', 'POST'])
+def vehicle_info(customer_id):
+    """
+    Route: Post-Signup Vehicle Info (Use Case 1 — Customer only, optional)
+    POST: Uses Customer.add_vehicle() to create and link the Vehicle record,
+          then updates customer.vehicle_id to the newly created vehicle.
+          'Skip for Now' bypasses the DB write entirely.
+    """
+    customer = Customer.query.get_or_404(customer_id)
+
+    if request.method == 'POST':
+        skip = request.form.get('skip')
+
+        if not skip:
+            make  = request.form.get('make', '').strip()
+            model = request.form.get('model', '').strip()
+            year  = request.form.get('year', '').strip()
+            plate = request.form.get('plate', '').strip()
+            size  = request.form.get('size', 'medium').strip()
+
+            if make and model and year and plate:
+                try:
+                    # Delegates to Customer.add_vehicle() which handles Vehicle
+                    # creation and links it via customerID
+                    new_vehicle = customer.add_vehicle(
+                        make=make,
+                        model=model,
+                        year=int(year),
+                        plate=plate,
+                        size=size,
+                        type='Car'
+                    )
+                    # Track this as the customer's active vehicle
+                    customer.vehicle_id = new_vehicle.vehicleID
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f"Could not save vehicle: {str(e)}", "danger")
+                    return redirect(url_for('vehicle_info', customer_id=customer_id))
+
+        return redirect(url_for('home'))
+
+    return render_template('vehicle_info.html', customer=customer)
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash("You have been logged out.", "info")
+    return redirect(url_for('home'))
+
+# --- EDIT PROFILE ---
+
+@app.route('/profile', methods=['GET', 'POST'])
+def profile():
+    if not session.get('user_id'):
+        flash("Please log in to view your profile.", "danger")
+        return redirect(url_for('login'))
+
+    role = session.get('user_role')
+
+    if role == 'customer':
+        user = Customer.query.get_or_404(session['user_id'])
+    elif role == 'employee':
+        user = Employee.query.get_or_404(session['user_id'])
+    elif role == 'manager':
+        user = Manager.query.get_or_404(session['user_id'])
+    else:
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        # --- Personal Info ---
+        f_name = request.form.get('first_name', '').strip()
+        l_name = request.form.get('last_name', '').strip()
+        email  = request.form.get('email', '').strip().lower()
+        phone  = request.form.get('phone', '').strip()
+
+        user.update_first_name(f_name)
+        user.update_last_name(l_name)
+        user.update_email(email)
+        user.update_phone(phone)
+        session['user_name'] = f_name
+
+        # --- Vehicle Info (customer only) ---
+        if role == 'customer':
+            make  = request.form.get('make', '').strip()
+            model = request.form.get('v_model', '').strip()
+            year  = request.form.get('year', '').strip()
+            plate = request.form.get('plate', '').strip()
+            size  = request.form.get('size', 'medium')
+
+            if make and model and year and plate:
+                try:
+                    if user.vehicle_id:
+                        vehicle = Vehicle.query.get(user.vehicle_id)
+                        if vehicle:
+                            vehicle.update_make(make)
+                            vehicle.update_model(model)
+                            vehicle.update_year(int(year))
+                            vehicle.update_plate(plate)
+                            vehicle.update_size(size)
+                    else:
+                        new_vehicle = user.add_vehicle(
+                            make=make, model=model,
+                            year=int(year), plate=plate,
+                            size=size, type='Car'
+                        )
+                        user.vehicle_id = new_vehicle.vehicleID
+                        db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f"Vehicle update failed: {str(e)}", "danger")
+                    return redirect(url_for('profile'))
+
+        # --- Password Change ---
+        current_pw = request.form.get('current_password', '').strip()
+        new_pw     = request.form.get('new_password', '').strip()
+        confirm_pw = request.form.get('confirm_password', '').strip()
+
+        if current_pw and new_pw:
+            if not user.authenticate_user(current_pw):
+                flash("Current password is incorrect.", "danger")
+                return redirect(url_for('profile'))
+            if new_pw != confirm_pw:
+                flash("New passwords do not match.", "danger")
+                return redirect(url_for('profile'))
+            if len(new_pw) < 6:
+                flash("New password must be at least 6 characters.", "danger")
+                return redirect(url_for('profile'))
+            user.update_password(new_pw)
+
+        flash("Profile updated successfully.", "success")
+        return redirect(url_for('profile'))
+
+    # GET: fetch vehicle for customer
+    vehicle = None
+    if role == 'customer' and user.vehicle_id:
+        vehicle = Vehicle.query.get(user.vehicle_id)
+
+    return render_template('edit_profile.html', user=user, vehicle=vehicle, role=role)
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

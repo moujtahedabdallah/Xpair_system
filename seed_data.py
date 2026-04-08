@@ -9,6 +9,7 @@ from src.employee import Employee
 from src.manager import Manager
 from datetime import datetime
 from flask import Flask
+from werkzeug.security import generate_password_hash
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///xpair_detailing.db'
@@ -28,7 +29,7 @@ def seed_data():
                 last_name="Snow",
                 email="johnsnow@gmail.com",
                 phone="514-000-3434",
-                password="348password",
+                password=generate_password_hash("348password"),
                 max_car_capacity=5
             )
             db.session.add(admin)
@@ -49,7 +50,7 @@ def seed_data():
                 last_name="Doe",
                 email="test_customer@gmail.com",
                 phone="450-555-9999",
-                password="password123"
+                password=generate_password_hash("password123"),
             )
             db.session.add(test_cust)
             db.session.flush()
@@ -88,7 +89,7 @@ def seed_data():
                 last_name="Johnson",
                 email="test_employee@gmail.com",
                 phone="514-111-2222",
-                password="password123",
+                password=generate_password_hash("password123"),
                 role="employee",
                 experience_level="junior",
                 position="Detailer",

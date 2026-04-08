@@ -156,18 +156,36 @@
                     <li class="nav-item me-3">
                         <a class="nav-link text-dark" href="{{ url_for('home') }}">Home</a>
                     </li>
-                    <li class="nav-item me-4">
-                        <a class="nav-link text-muted" href="#">Log In / Sign Up</a> 
-                    </li>
-                    <li class="nav-item">
+
+                    {% if session.get('user_id') %}
+                        <li class="nav-item me-3">
+                            <a class="nav-link text-dark" href="{{ url_for('profile') }}">
+                                {% if session.get('user_role') == 'customer' %}
+                                    <i class="bi bi-person-circle me-1"></i> Customer Profile
+                                {% elif session.get('user_role') == 'employee' %}
+                                    <i class="bi bi-person-badge me-1"></i> Employee Profile
+                                {% elif session.get('user_role') == 'manager' %}
+                                    <i class="bi bi-person-gear me-1"></i> Manager Profile
+                                {% endif %}
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item me-4">
+                            <a class="nav-link text-muted" href="{{ url_for('login') }}">Log In / Sign Up</a>
+                        </li>
+                    {% endif %}
+
+                    <li class="nav-item me-3">
                         <a class="btn btn-xpair px-4 py-2 rounded-pill shadow-sm" href="{{ url_for('booking_page') }}">Book Appointment</a>
                     </li>
-                    <li class="nav-item me-3">
-                        <a class="nav-link text-dark" href="{{ url_for('demo_employee_redirect') }}">Employee</a>
-                    </li>
-                    <li class="nav-item me-3">
-                        <a class="nav-link text-dark" href="{{ url_for('demo_manager_redirect') }}">Manager</a>
-                    </li>
+
+                    {% if session.get('user_id') %}
+                        <li class="nav-item">
+                            <a class="btn btn-outline-dark px-3 py-2 rounded-pill" href="{{ url_for('logout') }}">
+                                <i class="bi bi-box-arrow-right me-1"></i> Log Out
+                            </a>
+                        </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -193,7 +211,11 @@
                         </div>
                         <div>
                             <h6 class="mb-0 fw-bold">
-                                {% if 'rescheduled' in message.lower() %} Booking Rescheduled
+                                {% if 'welcome back' in message.lower() %} Login Successful
+                                {% elif 'account created' in message.lower() %} Account Created!
+                                {% elif 'logged out' in message.lower() %} Logged Out
+                                {% elif 'profile updated' in message.lower() %} Profile Updated
+                                {% elif 'rescheduled' in message.lower() %} Booking Rescheduled
                                 {% elif 'cancelled' in message.lower() %} Booking Cancelled
                                 {% else %} Notification {% endif %}
                             </h6>

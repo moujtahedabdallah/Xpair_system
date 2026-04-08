@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Vehicle Information - Xpair Detailing{% endblock %}
+
+{% block content %}
+<div class="container py-5 d-flex justify-content-center align-items-start" style="min-height: 80vh;">
+    <div class="w-100" style="max-width: 620px;">
+
+        <!-- Dark Header Banner -->
+        <div class="text-center text-white py-4 px-4" style="background: var(--xpair-dark); border-radius: 16px 16px 0 0;">
+            <div class="auth-icon-wrap mb-3">
+                <i class="bi bi-arrow-left-right fs-3 text-white"></i>
+            </div>
+            <h3 class="fw-bold mb-1">Vehicle Information</h3>
+            <p class="text-white-50 small mb-0">Add your vehicle details (optional)</p>
+        </div>
+
+        <!-- Form Body -->
+        <div class="bg-white p-4 p-md-5" style="border-radius: 0 0 16px 16px; border: 1px solid var(--xpair-border); border-top: none;">
+            <form method="POST" action="{{ url_for('vehicle_info', customer_id=customer.customerID) }}">
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Make</label>
+                        <input type="text" name="make" class="form-control bg-light border-0 py-2" placeholder="e.g., Toyota">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Model</label>
+                        <input type="text" name="model" class="form-control bg-light border-0 py-2" placeholder="e.g., Camry">
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Year</label>
+                        <input type="number" name="year" class="form-control bg-light border-0 py-2" placeholder="e.g., 2022" min="1980" max="2030">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">License Plate</label>
+                        <input type="text" name="plate" class="form-control bg-light border-0 py-2" placeholder="e.g., ABC-1234">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold small">Vehicle Size</label>
+                    <div class="row g-2 mt-1">
+                        {% for size, desc in [('small','Sedan, Coupe'), ('medium','SUV, Truck'), ('large','Van, Large SUV')] %}
+                        <div class="col-4">
+                            <label class="selectable-card-label">
+                                <input type="radio" name="size" value="{{ size }}" class="selectable-card-input"
+                                    {% if size == 'medium' %}checked{% endif %}>
+                                <div class="xpair-selectable-card text-center py-3" style="min-height: 80px;">
+                                    <span class="fw-bold d-block text-capitalize">{{ size }}</span>
+                                    <small class="text-muted">{{ desc }}</small>
+                                </div>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="d-flex gap-3 mt-2">
+                    <!-- Skip sends a hidden flag, bypasses DB write -->
+                    <button type="submit" name="skip" value="true"
+                        class="btn btn-outline-secondary flex-fill py-3 fw-bold rounded-3">
+                        Skip for Now
+                    </button>
+                    <button type="submit"
+                        class="btn btn-xpair flex-fill py-3 fw-bold rounded-3">
+                        Save Vehicle Info
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .auth-icon-wrap {
+        width: 56px; height: 56px;
+        background: var(--xpair-red);
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+{% endblock %}

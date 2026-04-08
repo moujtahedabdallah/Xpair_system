@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Edit Profile - Xpair Detailing{% endblock %}
+
+{% block content %}
+<div class="container py-5 d-flex justify-content-center">
+    <div class="w-100" style="max-width: 680px;">
+
+        <!-- Dark Header -->
+        <div class="text-white py-4 px-4 d-flex align-items-center justify-content-between"
+             style="background: var(--xpair-dark); border-radius: 16px 16px 0 0;">
+            <div class="d-flex align-items-center gap-3">
+                <div class="auth-icon-wrap">
+                    <i class="bi bi-person-fill fs-5 text-white"></i>
+                </div>
+                <div>
+                    <h4 class="fw-bold mb-0">Edit Profile</h4>
+                    <small class="text-white-50">Update your account information</small>
+                </div>
+            </div>
+            <a href="javascript:history.back()" class="text-white-50 text-decoration-none fs-4">
+                <i class="bi bi-x-lg"></i>
+            </a>
+        </div>
+
+        <!-- Form Body -->
+        <div class="bg-white p-4 p-md-5"
+             style="border-radius: 0 0 16px 16px; border: 1px solid var(--xpair-border); border-top: none;">
+            <form method="POST" action="{{ url_for('profile') }}">
+
+                <!-- Personal Information -->
+                <div class="section-label mb-3">
+                    <i class="bi bi-person text-xpair me-2"></i>
+                    <span class="fw-bold">Personal Information</span>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">First Name</label>
+                        <input type="text" name="first_name"
+                            class="form-control bg-light border-0 py-2"
+                            value="{{ user.first_name }}"
+                            placeholder="John" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Last Name</label>
+                        <input type="text" name="last_name"
+                            class="form-control bg-light border-0 py-2"
+                            value="{{ user.last_name }}"
+                            placeholder="Doe" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Email Address</label>
+                        <input type="email" name="email"
+                               class="form-control bg-light border-0 py-2"
+                               value="{{ user.email }}"
+                               placeholder="john.doe@example.com" required>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold small">Phone Number</label>
+                    <input type="tel" name="phone"
+                           class="form-control bg-light border-0 py-2"
+                           value="{{ user.phone or '' }}"
+                           placeholder="(555) 123-4567">
+                </div>
+
+                <hr class="my-4">
+
+                <!-- Vehicle Information (customer only) -->
+                {% if role == 'customer' %}
+                <div class="section-label mb-3">
+                    <i class="bi bi-arrow-left-right text-xpair me-2"></i>
+                    <span class="fw-bold">Vehicle Information</span>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Make</label>
+                        <input type="text" name="make"
+                               class="form-control bg-light border-0 py-2"
+                               value="{{ vehicle.make if vehicle else '' }}"
+                               placeholder="e.g., Toyota">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Model</label>
+                        <input type="text" name="v_model"
+                               class="form-control bg-light border-0 py-2"
+                               value="{{ vehicle.model if vehicle else '' }}"
+                               placeholder="e.g., Camry">
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Year</label>
+                        <input type="number" name="year"
+                               class="form-control bg-light border-0 py-2"
+                               value="{{ vehicle.year if vehicle else '' }}"
+                               placeholder="e.g., 2022" min="1980" max="2030">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">License Plate</label>
+                        <input type="text" name="plate"
+                               class="form-control bg-light border-0 py-2"
+                               value="{{ vehicle.plate if vehicle else '' }}"
+                               placeholder="e.g., ABC-1234">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold small">Vehicle Size</label>
+                    <div class="row g-2 mt-1">
+                        {% for s, desc in [('small','Sedan, Coupe'), ('medium','SUV, Truck'), ('large','Van, Large SUV')] %}
+                        <div class="col-4">
+                            <label class="selectable-card-label">
+                                <input type="radio" name="size" value="{{ s }}"
+                                       class="selectable-card-input"
+                                       {% if vehicle and vehicle.size == s %}checked
+                                       {% elif not vehicle and s == 'medium' %}checked{% endif %}>
+                                <div class="xpair-selectable-card text-center py-3" style="min-height: 75px;">
+                                    <span class="fw-bold d-block text-capitalize">{{ s }}</span>
+                                    <small class="text-muted">{{ desc }}</small>
+                                </div>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <hr class="my-4">
+                {% endif %}
+
+                <!-- Change Password -->
+                <div class="section-label mb-3">
+                    <i class="bi bi-lock text-xpair me-2"></i>
+                    <span class="fw-bold">Change Password</span>
+                </div>
+                <small class="text-muted d-block mb-3">Leave blank to keep your current password.</small>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Current Password</label>
+                    <input type="password" name="current_password"
+                           class="form-control bg-light border-0 py-2"
+                           placeholder="Enter current password">
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">New Password</label>
+                        <input type="password" name="new_password"
+                               class="form-control bg-light border-0 py-2"
+                               placeholder="Enter new password">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Confirm Password</label>
+                        <input type="password" name="confirm_password"
+                               class="form-control bg-light border-0 py-2"
+                               placeholder="Confirm new password">
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="d-flex gap-3">
+                    <a href="javascript:history.back()"
+                       class="btn btn-outline-secondary flex-fill py-3 fw-bold rounded-3">Cancel</a>
+                    <button type="submit"
+                            class="btn btn-xpair flex-fill py-3 fw-bold rounded-3">Save Changes</button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .auth-icon-wrap {
+        width: 48px; height: 48px;
+        background: var(--xpair-red);
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .section-label {
+        font-size: 1rem;
+        color: var(--xpair-dark);
+    }
+</style>
+{% endblock %}

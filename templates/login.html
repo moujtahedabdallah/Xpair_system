@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Login - Xpair Detailing{% endblock %}
+
+{% block content %}
+<div class="container py-5 d-flex justify-content-center align-items-start" style="min-height: 80vh;">
+    <div class="auth-card w-100" style="max-width: 520px;">
+
+        <!-- Dark Header Banner -->
+        <div class="auth-header text-center text-white py-4 px-4" style="background: var(--xpair-dark); border-radius: 16px 16px 0 0;">
+            <div class="auth-icon-wrap mb-3">
+                <i class="bi bi-person-fill fs-3 text-white"></i>
+            </div>
+            <h3 class="fw-bold mb-1">Welcome Back</h3>
+            <p class="text-white-50 small mb-0">Sign in to your Xpair Detailing account</p>
+        </div>
+
+        <!-- Form Body -->
+        <div class="bg-white p-4 p-md-5" style="border-radius: 0 0 16px 16px; border: 1px solid var(--xpair-border); border-top: none;">
+
+            <!-- Role Toggle -->
+            <p class="fw-bold mb-2 small">Login As</p>
+            <div class="role-toggle d-flex mb-4 p-1 rounded-3 bg-light" id="loginRoleToggle">
+                <button type="button" class="role-btn flex-fill py-2 rounded-2 fw-bold active" data-role="customer">Customer</button>
+                <button type="button" class="role-btn flex-fill py-2 rounded-2 fw-bold" data-role="staff">Staff<br><small class="fw-normal" style="font-size:0.7rem;">(Employee/Manager)</small></button>
+            </div>
+
+            <form method="POST" action="{{ url_for('login') }}">
+                <input type="hidden" name="role_tab" id="loginRoleInput" value="customer">
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Email Address</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-0"><i class="bi bi-at text-muted"></i></span>
+                        <input type="email" name="email" class="form-control bg-light border-0 py-2" placeholder="john.doe@example.com" required>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-0"><i class="bi bi-lock text-muted"></i></span>
+                        <input type="password" name="password" class="form-control bg-light border-0 py-2" placeholder="Enter your password" required>
+                    </div>
+                </div>
+
+                <!-- Staff-only: Department -->
+                <div class="mb-3" id="loginDeptWrap" style="display:none;">
+                    <label class="form-label fw-bold small">Department</label>
+                    <select name="department" id="loginDeptSelect" class="form-select bg-light border-0">
+                        <option value="">Select department</option>
+                        <option value="employee">Detailing Employee</option>
+                        <option value="management">Management</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-xpair w-100 py-3 fw-bold rounded-3 mb-3">Login</button>
+
+                <div class="text-center">
+                    <span class="text-muted small">or</span>
+                </div>
+                <div class="text-center mt-3">
+                    <span class="text-muted small">Don't have an account? </span>
+                    <a href="{{ url_for('signup') }}" class="text-xpair fw-bold text-decoration-none small">Sign Up</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .auth-icon-wrap {
+        width: 56px; height: 56px;
+        background: var(--xpair-red);
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .role-toggle { gap: 4px; }
+    .role-btn {
+        border: none;
+        background: transparent;
+        color: #6B7280;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        line-height: 1.3;
+    }
+    .role-btn.active {
+        background: var(--xpair-red);
+        color: white;
+        box-shadow: 0 2px 8px rgba(216,34,66,0.25);
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const roleBtns    = document.querySelectorAll('#loginRoleToggle .role-btn');
+    const roleInput   = document.getElementById('loginRoleInput');
+    const deptWrap    = document.getElementById('loginDeptWrap');
+    const deptSelect  = document.getElementById('loginDeptSelect');
+
+    roleBtns.forEach(btn => {
+        btn.addEventListener('click', function () {
+            roleBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const role = this.dataset.role;
+            roleInput.value = role;
+            if (role === 'staff') {
+                deptWrap.style.display = 'block';
+                deptSelect.required = true;
+            } else {
+                deptWrap.style.display = 'none';
+                deptSelect.required = false;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
