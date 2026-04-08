@@ -23,11 +23,11 @@ def seed_data():
         print("✅ SUCCESS: Database linked and tables created!")
 
         # 1. Add Test Manager
-        if not Manager.query.filter_by(email="johnsnow@gmail.com").first():
+        if not Manager.query.filter_by(email="johnsnow@xpair.com").first():
             admin = Manager(
                 first_name="John",
                 last_name="Snow",
-                email="johnsnow@gmail.com",
+                email="johnsnow@xpair.com",
                 phone="514-000-3434",
                 password=generate_password_hash("348password"),
                 max_car_capacity=5
@@ -83,11 +83,11 @@ def seed_data():
                 print("Test customer, vehicle, and booking added.")
 
         # 4. Add Test Employee
-        if not Employee.query.filter_by(email="test_employee@gmail.com").first():
+        if not Employee.query.filter_by(email="test_employee@xpair.com").first():
             test_emp = Employee(
                 first_name="Mike",
                 last_name="Johnson",
-                email="test_employee@gmail.com",
+                email="test_employee@xpair.com",
                 phone="514-111-2222",
                 password=generate_password_hash("password123"),
                 role="employee",

@@ -376,17 +376,18 @@ from werkzeug.security import generate_password_hash
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """
-    Route: Login Page (Use Case 1)
-    GET:  Renders the login form (Customer or Staff tab).
-    POST: Authenticates via Person.authenticate_user() (checks hashed password),
-          sets session, redirects by role.
-    """
+
     if request.method == 'POST':
         role_tab   = request.form.get('role_tab')
         email      = request.form.get('email', '').strip().lower()
         password   = request.form.get('password', '').strip()
         department = request.form.get('department', '')
+
+        # --- STAFF EMAIL CHECK HERE ---
+        if role_tab == 'staff' and not email.endswith('@xpair.com'):
+            flash("Staff access requires an @xpair.com email address.", "danger")
+            return redirect(url_for('login'))
+        # --------------------------------------
 
         if role_tab == 'customer':
             user = Customer.query.filter_by(email=email).first()
@@ -434,18 +435,23 @@ def login():
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
-   
     if request.method == 'POST':
         role_tab   = request.form.get('role_tab')
-        f_name = request.form.get('first_name', '').strip()
-        l_name = request.form.get('last_name', '').strip()
+        f_name     = request.form.get('first_name', '').strip()
+        l_name     = request.form.get('last_name', '').strip()
         email      = request.form.get('email', '').strip().lower()
         phone      = request.form.get('phone', '').strip()
         password   = request.form.get('password', '').strip()
         confirm_pw = request.form.get('confirm_password', '').strip()
         department = request.form.get('department', '')
 
-        # Validation
+        # --- STAFF EMAIL CHECK HERE ---
+        if role_tab == 'staff' and not email.endswith('@xpair.com'):
+            flash("Staff accounts must use a valid @xpair.com business email.", "danger")
+            return redirect(url_for('signup'))
+        # --------------------------------------
+        
+        # Rest of the Validation
         if password != confirm_pw:
             flash("Passwords do not match.", "danger")
             return redirect(url_for('signup'))
@@ -668,7 +674,14 @@ def profile():
             user.update_password(new_pw)
 
         flash("Profile updated successfully.", "success")
-        return redirect(url_for('profile'))
+        
+        # Route back to respective dashboard upon successful save
+        if role == 'employee':
+            return redirect(url_for('employee_jobs', employee_id=user.employeeID))
+        elif role == 'manager':
+            return redirect(url_for('manager_availability', manager_id=user.managerID))
+        else:
+            return redirect(url_for('home'))
 
     # GET: fetch vehicle for customer
     vehicle = None

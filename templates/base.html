@@ -143,7 +143,11 @@
 
     <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top py-3 shadow-sm">
         <div class="container">
-            <a class="navbar-brand fw-bold fs-4" href="{{ url_for('home') }}">
+            <a class="navbar-brand fw-bold fs-4" href="
+                {% if session.get('user_role') == 'employee' %}{{ url_for('employee_jobs', employee_id=session.get('user_id')) }}
+                {% elif session.get('user_role') == 'manager' %}{{ url_for('manager_availability', manager_id=session.get('user_id')) }}
+                {% else %}{{ url_for('home') }}{% endif %}
+            ">
                 <span class="text-dark">Xpair</span><span class="text-xpair">Detailing</span>
             </a>
             
@@ -154,7 +158,13 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center fw-bold">
                     <li class="nav-item me-3">
-                        <a class="nav-link text-dark" href="{{ url_for('home') }}">Home</a>
+                        {% if session.get('user_role') == 'employee' %}
+                            <a class="nav-link text-dark" href="{{ url_for('employee_jobs', employee_id=session.get('user_id')) }}">Employee Dashboard</a>
+                        {% elif session.get('user_role') == 'manager' %}
+                            <a class="nav-link text-dark" href="{{ url_for('manager_availability', manager_id=session.get('user_id')) }}">Manager Dashboard</a>
+                        {% else %}
+                            <a class="nav-link text-dark" href="{{ url_for('home') }}">Home</a>
+                        {% endif %}
                     </li>
 
                     {% if session.get('user_id') %}
@@ -175,9 +185,11 @@
                         </li>
                     {% endif %}
 
+                    {% if session.get('user_role') not in ['employee', 'manager'] %}
                     <li class="nav-item me-3">
                         <a class="btn btn-xpair px-4 py-2 rounded-pill shadow-sm" href="{{ url_for('booking_page') }}">Book Appointment</a>
                     </li>
+                    {% endif %}
 
                     {% if session.get('user_id') %}
                         <li class="nav-item">
