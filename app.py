@@ -341,6 +341,27 @@ def manager_request_changes(manager_id: int, availability_id: int):
 
     return redirect(url_for("manager_availability", manager_id=manager_id))
 
+@app.route("/demo/employee", methods=["GET"])
+def demo_employee_redirect():
+    """
+    Redirect to the first Employee found in the DB (demo mode).
+    """
+    employee = Employee.query.order_by(Employee.employeeID.asc()).first()
+    if not employee:
+        flash("No employees exist yet. Run seed_data.py (or create an employee) to view UC5.", "danger")
+        return redirect(url_for("home"))
+    return redirect(url_for("employee_jobs", employee_id=employee.employeeID))
 
+
+@app.route("/demo/manager", methods=["GET"])
+def demo_manager_redirect():
+    """
+    Redirect to the first Manager found in the DB (demo mode).
+    """
+    manager = Manager.query.order_by(Manager.managerID.asc()).first()
+    if not manager:
+        flash("No managers exist yet. Run seed_data.py (or create a manager) to view UC7.", "danger")
+        return redirect(url_for("home"))
+    return redirect(url_for("manager_availability", manager_id=manager.managerID))
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
