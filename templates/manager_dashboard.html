@@ -1,0 +1,556 @@
+{% extends "base.html" %}
+{% block title %}Management Dashboard - Xpair Detailing{% endblock %}
+
+<!-- UC8: MANAGEMENT DASHBOARD -->
+
+{% block content %}
+<style>
+    /* ── KPI CARDS ── */
+    .dash-kpi-card {
+        border-radius: 16px;
+        border: 1px solid var(--xpair-border);
+        background: white;
+        padding: 1.25rem 1.5rem;
+        transition: transform 0.2s ease;
+        position: relative;
+        height: 100%;
+        min-height: 130px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .dash-kpi-card:hover { transform: translateY(-2px); }
+    .dash-kpi-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #6B7280;
+        margin-bottom: 0.4rem;
+    }
+    .dash-kpi-value {
+        font-size: 1.85rem;
+        font-weight: 800;
+        color: var(--xpair-dark);
+        line-height: 1;
+    }
+    .dash-kpi-value.text-xpair { color: var(--xpair-red); }
+    .dash-kpi-sub {
+        font-size: 0.75rem;
+        color: #9CA3AF;
+        margin-top: 0.3rem;
+    }
+    .trend-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 20px;
+        margin-top: 6px;
+        align-self: flex-start;
+        width: fit-content;
+    }
+    .trend-up   { background: #DCFCE7; color: #15803D; }
+    .trend-down { background: #FEE2E2; color: #B91C1C; }
+    .trend-flat { background: #F3F4F6; color: #6B7280; }
+
+    /* ── CHART CARD ── */
+    .chart-card {
+        border-radius: 16px;
+        border: 1px solid var(--xpair-border);
+        background: white;
+        padding: 1.5rem;
+    }
+    .chart-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.25rem;
+    }
+    .chart-card-header h6 {
+        font-weight: 700;
+        font-size: 0.9rem;
+        color: var(--xpair-dark);
+        margin: 0;
+    }
+    .chart-toggle {
+        display: flex;
+        gap: 4px;
+        background: #F3F4F6;
+        border-radius: 8px;
+        padding: 3px;
+    }
+    .chart-toggle-btn {
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        color: #6B7280;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .chart-toggle-btn.active {
+        background: white;
+        color: var(--xpair-dark);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+
+    /* ── BAR CHART ── */
+    .bar-wrap {
+        display: flex;
+        align-items: flex-end;
+        gap: 6px;
+        height: 140px;
+        position: relative;
+    }
+    .bar-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        height: 100%;
+        position: relative;
+        cursor: pointer;
+    }
+    .bar-fill {
+        width: 100%;
+        border-radius: 6px 6px 0 0;
+        background: #D1D5DB;
+        min-height: 4px;
+        transition: background 0.2s, opacity 0.15s;
+    }
+    .bar-fill.active { background: var(--xpair-red); }
+    .bar-col:hover .bar-fill { opacity: 0.75; }
+    .bar-col.selected .bar-fill { background: var(--xpair-dark) !important; }
+
+    /* Tooltip */
+    .bar-tooltip {
+        display: none;
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--xpair-dark);
+        color: white;
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 5px 9px;
+        border-radius: 7px;
+        white-space: nowrap;
+        z-index: 10;
+        pointer-events: none;
+    }
+    .bar-tooltip::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 5px solid transparent;
+        border-top-color: var(--xpair-dark);
+    }
+    .bar-col:hover .bar-tooltip { display: block; }
+
+    .bar-lbl {
+        font-size: 0.68rem;
+        color: #9CA3AF;
+        margin-top: 6px;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    /* ── DONUT ── */
+    .donut-ring {
+        width: 90px; height: 90px;
+        border-radius: 50%;
+        border: 16px solid var(--xpair-border);
+        border-top-color: var(--xpair-red);
+        border-right-color: var(--xpair-dark);
+        flex-shrink: 0;
+    }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── TABLE ── */
+    .status-table .badge { font-size: 0.72rem; padding: 0.35em 0.75em; }
+
+    /* ── FILTER CHIP ── */
+    .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(216,34,66,0.07);
+        border: 1px solid rgba(216,34,66,0.25);
+        color: var(--xpair-red);
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 4px 12px;
+    }
+    .filter-chip a { cursor: pointer; font-size: 0.85rem; opacity: 0.6; text-decoration: none; color: var(--xpair-red); }
+    .filter-chip a:hover { opacity: 1; }
+
+    /* ── EMPTY STATE ── */
+    .empty-state-icon {
+        width: 56px; height: 56px;
+        border-radius: 50%;
+        background: var(--xpair-bg);
+        border: 1px solid var(--xpair-border);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        color: #9CA3AF;
+    }
+
+    /* ── SELECTED MONTH BANNER ── */
+    #month-filter-banner {
+        display: none;
+        background: rgba(216,34,66,0.05);
+        border: 1px solid rgba(216,34,66,0.2);
+        border-radius: 10px;
+        padding: 8px 16px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--xpair-red);
+        margin-bottom: 1rem;
+        align-items: center;
+        gap: 10px;
+    }
+</style>
+
+<div class="container py-5">
+
+    <!-- Page Header -->
+    <div class="d-flex align-items-end justify-content-between mb-4 flex-wrap gap-3">
+        <div>
+            <h2 class="fw-bold mb-1">Management Dashboard</h2>
+            <p class="text-muted mb-0">Key analytics generated from system data</p>
+        </div>
+        <!-- Period Filter (SubFlow S-1) -->
+        <form method="GET" action="{{ url_for('manager_dashboard', manager_id=manager.managerID) }}"
+              class="d-flex align-items-center gap-2 flex-wrap">
+            <label class="fw-bold small text-muted mb-0">Period:</label>
+            <select name="period" class="form-select form-select-sm bg-light border-0 fw-bold"
+                    style="width: auto;" onchange="this.form.submit()">
+                <option value="all"   {% if selected_period == 'all'   %}selected{% endif %}>All Time</option>
+                <option value="today" {% if selected_period == 'today' %}selected{% endif %}>Today</option>
+                <option value="week"  {% if selected_period == 'week'  %}selected{% endif %}>This Week</option>
+                <option value="month" {% if selected_period == 'month' %}selected{% endif %}>This Month</option>
+                <option value="year"  {% if selected_period == 'year'  %}selected{% endif %}>This Year</option>
+            </select>
+            {% if selected_period != 'all' %}
+            <span class="filter-chip">
+                {{ period_label }}
+                <a href="{{ url_for('manager_dashboard', manager_id=manager.managerID) }}" title="Clear">✕</a>
+            </span>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- ALTERNATE FLOW: Insufficient data -->
+    {% if insufficient_data %}
+    <div class="row g-3 mb-4">
+        {% for label in ['Revenue', 'Total Bookings', 'Active Jobs', 'Completed'] %}
+        <div class="col-6 col-md-3">
+            <div class="dash-kpi-card" style="opacity:0.4;">
+                <div class="dash-kpi-label">{{ label }}</div>
+                <div class="dash-kpi-value text-muted">—</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="chart-card text-center py-5">
+        <div class="empty-state-icon mb-3"><i class="bi bi-bar-chart"></i></div>
+        <h5 class="fw-bold mb-1">Insufficient data</h5>
+        <p class="text-muted small mb-3">No records found for the selected period.<br>Try a different time range.</p>
+        <a href="{{ url_for('manager_dashboard', manager_id=manager.managerID) }}"
+           class="btn btn-outline-dark btn-sm px-4 fw-bold">Clear Filter</a>
+    </div>
+
+    {% else %}
+
+    <!-- NORMAL FLOW: KPI Cards -->
+    <div class="row g-3 mb-4">
+
+        <!-- Revenue -->
+        <div class="col-6 col-md-3">
+            <div class="dash-kpi-card">
+                <div class="dash-kpi-label"><i class="bi bi-currency-dollar me-1"></i>Revenue</div>
+                <div class="dash-kpi-value text-xpair">${{ kpis.revenue }}</div>
+                <div class="dash-kpi-sub">Non-cancelled bookings</div>
+                {% if trends.revenue_pct is not none %}
+                <div class="trend-badge {% if trends.revenue_pct > 0 %}trend-up{% elif trends.revenue_pct < 0 %}trend-down{% else %}trend-flat{% endif %}">
+                    {% if trends.revenue_pct > 0 %}↑{% elif trends.revenue_pct < 0 %}↓{% else %}→{% endif %}
+                    {{ trends.revenue_pct|abs }}% vs prev month
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Total Bookings -->
+        <div class="col-6 col-md-3">
+            <div class="dash-kpi-card">
+                <div class="dash-kpi-label"><i class="bi bi-calendar-check me-1"></i>Total Bookings</div>
+                <div class="dash-kpi-value">{{ kpis.bookings }}</div>
+                <div class="dash-kpi-sub">All statuses</div>
+                {% if trends.bookings_pct is not none %}
+                <div class="trend-badge {% if trends.bookings_pct > 0 %}trend-up{% elif trends.bookings_pct < 0 %}trend-down{% else %}trend-flat{% endif %}">
+                    {% if trends.bookings_pct > 0 %}↑{% elif trends.bookings_pct < 0 %}↓{% else %}→{% endif %}
+                    {{ trends.bookings_pct|abs }}% vs prev month
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Active Jobs -->
+        <div class="col-6 col-md-3">
+            <div class="dash-kpi-card">
+                <div class="dash-kpi-label"><i class="bi bi-lightning me-1"></i>Active Jobs</div>
+                <div class="dash-kpi-value">{{ kpis.active_jobs }}</div>
+                <div class="dash-kpi-sub">Pending / in progress</div>
+                <div class="trend-badge {% if trends.active_pct is not none and trends.active_pct > 0 %}trend-up{% elif trends.active_pct is not none and trends.active_pct < 0 %}trend-down{% else %}trend-flat{% endif %}">
+                    {% if trends.active_pct is not none and trends.active_pct > 0 %}↑ {{ trends.active_pct }}% vs prev month
+                    {% elif trends.active_pct is not none and trends.active_pct < 0 %}↓ {{ trends.active_pct|abs }}% vs prev month
+                    {% else %}→ vs prev month{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Completed -->
+        <div class="col-6 col-md-3">
+            <div class="dash-kpi-card">
+                <div class="dash-kpi-label"><i class="bi bi-check2-circle me-1"></i>Completed</div>
+                <div class="dash-kpi-value">{{ kpis.completed }}</div>
+                <div class="dash-kpi-sub">Finished jobs</div>
+                <div class="trend-badge {% if trends.completed_pct is not none and trends.completed_pct > 0 %}trend-up{% elif trends.completed_pct is not none and trends.completed_pct < 0 %}trend-down{% else %}trend-flat{% endif %}">
+                    {% if trends.completed_pct is not none and trends.completed_pct > 0 %}↑ {{ trends.completed_pct }}% vs prev month
+                    {% elif trends.completed_pct is not none and trends.completed_pct < 0 %}↓ {{ trends.completed_pct|abs }}% vs prev month
+                    {% else %}→ vs prev month{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Month click banner -->
+    <div id="month-filter-banner" style="display:none; align-items:center; gap:10px;"
+         class="mb-3 px-3 py-2 rounded-3">
+        <i class="bi bi-funnel-fill"></i>
+        <span id="month-banner-text"></span>
+        <button onclick="clearMonthFilter()" class="btn btn-sm btn-outline-danger ms-auto py-0 px-2"
+                style="font-size:0.72rem;">Clear ✕</button>
+    </div>
+
+    <!-- CHARTS ROW -->
+    <div class="row g-4 mb-4">
+
+        <!-- Bar Chart -->
+        <div class="col-lg-7">
+            <div class="chart-card h-100">
+                <div class="chart-card-header">
+                    <h6><i class="bi bi-bar-chart-line me-2 text-xpair"></i>Last 6 Months</h6>
+                    <div class="chart-toggle">
+                        <button class="chart-toggle-btn active" id="btn-revenue" onclick="switchChart('revenue')">Revenue</button>
+                        <button class="chart-toggle-btn" id="btn-bookings" onclick="switchChart('bookings')">Bookings</button>
+                    </div>
+                </div>
+
+                <!-- Revenue bars -->
+                <div id="chart-revenue">
+                    <div class="bar-wrap">
+                        {% for item in chart_data.monthly %}
+                        <div class="bar-col {% if item.active %}selected{% endif %}"
+                             data-month="{{ item.month }}"
+                             data-revenue="{{ item.value }}"
+                             data-bookings="{{ item.booking_count }}"
+                             onclick="filterByMonth(this)">
+                            <div class="bar-tooltip">
+                                ${{ '{:,.0f}'.format(item.value) }} · {{ item.booking_count }} bookings
+                            </div>
+                            <div class="bar-fill {% if item.active %}active{% endif %}"
+                                 style="height: {{ item.pct }}%;"></div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div style="display:flex; gap:6px; margin-top:6px;">
+                        {% for item in chart_data.monthly %}
+                        <div style="flex:1; text-align:center;">
+                            <span class="bar-lbl">{{ item.month }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Bookings bars (hidden by default) -->
+                <div id="chart-bookings" style="display:none;">
+                    <div class="bar-wrap">
+                        {% for item in chart_data.monthly %}
+                        <div class="bar-col {% if item.active %}selected{% endif %}"
+                             data-month="{{ item.month }}"
+                             data-revenue="{{ item.value }}"
+                             data-bookings="{{ item.booking_count }}"
+                             onclick="filterByMonth(this)">
+                            <div class="bar-tooltip">
+                                {{ item.booking_count }} bookings · ${{ '{:,.0f}'.format(item.value) }}
+                            </div>
+                            <div class="bar-fill {% if item.active %}active{% endif %}"
+                                 style="height: {{ item.bpct }}%;"></div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div style="display:flex; gap:6px; margin-top:6px;">
+                        {% for item in chart_data.monthly %}
+                        <div style="flex:1; text-align:center;">
+                            <span class="bar-lbl">{{ item.month }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Donut: Bookings by service -->
+        <div class="col-lg-5">
+            <div class="chart-card h-100">
+                <div class="chart-card-header">
+                    <h6><i class="bi bi-pie-chart me-2 text-xpair"></i>Bookings by Service</h6>
+                </div>
+                {% if chart_data.by_service %}
+                <div class="d-flex align-items-center gap-4">
+                    <div class="donut-ring"></div>
+                    <div style="flex:1;">
+                        {% for item in chart_data.by_service %}
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <div class="legend-dot" style="background:{{ item.color }};"></div>
+                            <span class="small fw-bold text-dark" style="font-size:0.78rem;">{{ item.label }}</span>
+                            <span class="small text-muted ms-auto ps-2">{{ item.count }}</span>
+                            <span class="small text-muted" style="font-size:0.7rem; min-width:36px; text-align:right;">
+                                {{ item.pct }}%
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted small mt-3">No service data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- RECENT BOOKINGS TABLE -->
+    <div class="card xpair-card p-0 overflow-hidden status-table">
+        <div class="p-4 border-bottom bg-white d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0">Recent Bookings</h5>
+            <a href="{{ url_for('manager_availability', manager_id=manager.managerID) }}"
+               class="btn btn-sm btn-outline-dark fw-bold px-3">
+                <i class="bi bi-calendar3 me-1"></i> View Availability
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table mb-0 align-middle" id="bookings-table">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Booking ID</th>
+                        <th>Service</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="bookings-tbody">
+                    {% for b in recent_bookings %}
+                    <tr data-month="{{ b.month_label }}">
+                        <td class="ps-4 fw-bold">BK-{{ b.id }}</td>
+                        <td>{{ b.service }}</td>
+                        <td>{{ b.date }}</td>
+                        <td class="text-muted small">{{ b.time }}</td>
+                        <td>
+                            <span class="badge rounded-pill
+                                {% if b.status == 'completed'   %} bg-success-subtle text-success
+                                {% elif b.status == 'in_progress' %} bg-warning-subtle text-warning
+                                {% elif b.status == 'cancelled'  %} bg-danger-subtle text-danger
+                                {% elif b.status == 'confirmed'  %} bg-primary-subtle text-primary
+                                {% else %} bg-secondary-subtle text-secondary
+                                {% endif %}">
+                                {{ b.status | replace('_', ' ') | capitalize }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if recent_bookings | length == 0 %}
+                    <tr><td colspan="5" class="text-muted p-4">No bookings found.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+{% block scripts %}
+<script>
+    // ── CHART TOGGLE (Revenue / Bookings) ──
+    function switchChart(mode) {
+        document.getElementById('chart-revenue').style.display  = mode === 'revenue'  ? 'block' : 'none';
+        document.getElementById('chart-bookings').style.display = mode === 'bookings' ? 'block' : 'none';
+        document.getElementById('btn-revenue').classList.toggle('active',  mode === 'revenue');
+        document.getElementById('btn-bookings').classList.toggle('active', mode === 'bookings');
+    }
+
+    // ── CLICK BAR → FILTER TABLE ──
+    let activeMonth = null;
+
+    function filterByMonth(col) {
+        const month = col.dataset.month;
+
+        // Toggle off if same bar clicked again
+        if (activeMonth === month) {
+            clearMonthFilter();
+            return;
+        }
+
+        activeMonth = month;
+
+        // Highlight selected bar in both charts
+        document.querySelectorAll('.bar-col').forEach(c => {
+            c.classList.toggle('selected', c.dataset.month === month);
+        });
+
+        // Show banner
+        const revenue  = parseFloat(col.dataset.revenue).toLocaleString('en-CA', {style:'currency', currency:'CAD', maximumFractionDigits:0});
+        const bookings = col.dataset.bookings;
+        const banner   = document.getElementById('month-filter-banner');
+        document.getElementById('month-banner-text').textContent =
+            `Showing ${month} — ${revenue} revenue · ${bookings} bookings`;
+        banner.style.display = 'flex';
+
+        // Filter table rows
+        document.querySelectorAll('#bookings-tbody tr[data-month]').forEach(row => {
+            row.style.display = row.dataset.month === month ? '' : 'none';
+        });
+
+        // Show "no results" if all hidden
+        const visible = [...document.querySelectorAll('#bookings-tbody tr[data-month]')]
+            .filter(r => r.style.display !== 'none');
+        const noRow = document.getElementById('no-month-results');
+        if (noRow) noRow.style.display = visible.length === 0 ? '' : 'none';
+    }
+
+    function clearMonthFilter() {
+        activeMonth = null;
+        document.querySelectorAll('.bar-col').forEach(c => c.classList.remove('selected'));
+        document.getElementById('month-filter-banner').style.display = 'none';
+        document.querySelectorAll('#bookings-tbody tr[data-month]').forEach(r => r.style.display = '');
+        const noRow = document.getElementById('no-month-results');
+        if (noRow) noRow.style.display = 'none';
+    }
+</script>
+{% endblock %}
+{% endblock %}

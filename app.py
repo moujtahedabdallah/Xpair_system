@@ -51,15 +51,14 @@ with app.app_context():
     except Exception as e:
         print(f"ERROR: Database sync failed: {e}")
 
-# ------------------------------------------------------ ALL ROUTES BELOW ------------------------------------------------------ 
+# ------------------------------------------------------ ALL ROUTES BELOW ------------------------------------------------------
 
 @app.route('/')
 def home():
-
     all_services = Service.query.all()
     return render_template('index.html', services=all_services)
 
-# --- UC3 ROUTES (Booking page logic + handling / Booking success confirmation / Post-booking management (reschedule / cancel)  ----------------------------------------------
+# --- UC3 ROUTES (Booking page logic + handling / Booking success confirmation / Post-booking management (reschedule / cancel) ----------------------------------------------
 
 @app.route('/book', methods=['GET', 'POST'])
 def booking_page():
@@ -68,7 +67,6 @@ def booking_page():
     if request.method == 'GET':
         all_services = Service.query.all()
 
-        # Dictionary used to populate the Add-ons list in book.html
         add_ons = {
             "UV Protection for Plastics": 25.00,
             "Detailed Seat Cleaning": 60.00,
@@ -85,7 +83,6 @@ def booking_page():
 
     # --- HANDLING FORM SUBMISSION ---
     if request.method == 'POST':
-        # 1. Extract Guest Data Only (if not logged in as customer)
         if session.get('user_role') == 'customer':
             f_name = l_name = email = phone = None
         else:
@@ -94,47 +91,35 @@ def booking_page():
             email  = request.form.get('email')
             phone  = request.form.get('phone')
 
-        # 2. Extract The Booking Details
-        service_id = int(request.form.get('serviceID'))
-        vehicle_size = request.form.get('vehicleSize').lower()  # Sync with src validation
-        date_str = request.form.get('date')  # From Flatpickr
-        time_str = request.form.get('time')  # From our grid selection
+        service_id   = int(request.form.get('serviceID'))
+        vehicle_size = request.form.get('vehicleSize').lower()
+        date_str     = request.form.get('date')
+        time_str     = request.form.get('time')
         instructions = request.form.get('notes')
+        addons_list  = request.form.getlist('addons')
 
-        # Capture Add-ons list and join into a comma-separated string
-        addons_list = request.form.getlist('addons')
-
-        # 3. Handle Time Logic (Converting strings to Python DateTime objects)
         try:
-            # Combine Date and Time strings (e.g., "2026-03-30 9:00 AM")
-            start_dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %I:%M %p")
-
-            # Fetch the service to calculate the correct end_time
+            start_dt         = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %I:%M %p")
             selected_service = db.session.get(Service, service_id)
-            end_dt = start_dt + timedelta(minutes=selected_service.service_duration)
+            end_dt           = start_dt + timedelta(minutes=selected_service.service_duration)
         except Exception as e:
             flash(f"Invalid Date or Time selection: {e}", "danger")
             return redirect(url_for('booking_page'))
 
-        # 4. Handle Customer Record (if logged in / if guest)
         if session.get('user_role') == 'customer':
             customer = Customer.query.get(session['user_id'])
         else:
             customer = Customer.query.filter_by(email=email).first()
             if not customer:
                 customer = Customer(
-                    first_name=f_name,
-                    last_name=l_name,
-                    email=email,
-                    phone=phone,
+                    first_name=f_name, last_name=l_name,
+                    email=email, phone=phone,
                     password=generate_password_hash("guest_placeholder_123"),
-                    role="customer",
-                    address="Guest Checkout"
+                    role="customer", address="Guest Checkout"
                 )
                 db.session.add(customer)
                 db.session.commit()
 
-        # 5. Handle Vehicle record (if filled / if not filled or guest)
         new_vehicle = None
 
         if session.get('user_role') == 'customer' and customer.vehicle_id:
@@ -147,30 +132,21 @@ def booking_page():
         if new_vehicle is None:
             phone_suffix = phone[-4:] if phone else "0000"
             unique_plate = f"GUEST-{phone_suffix}-{datetime.now().strftime('%S')}"
-            new_vehicle = Vehicle(
-                make="Guest",
-                model="Vehicle",
-                year=2026,
-                plate=unique_plate,
-                type="Car",
-                size=vehicle_size,
-                customerID=customer.customerID
+            new_vehicle  = Vehicle(
+                make="Guest", model="Vehicle", year=2026,
+                plate=unique_plate, type="Car",
+                size=vehicle_size, customerID=customer.customerID
             )
             db.session.add(new_vehicle)
             db.session.commit()
             customer.vehicle_id = new_vehicle.vehicleID
             db.session.commit()
 
-        # 6. Create the Booking Object
         new_booking = Booking(
-            customerID=customer.customerID,
-            serviceID=service_id,
-            vehicleID=new_vehicle.vehicleID,
-            date=start_dt.date(),
-            start_time=start_dt,
-            end_time=end_dt,
-            booking_status='pending',
-            job_notes=instructions
+            customerID=customer.customerID, serviceID=service_id,
+            vehicleID=new_vehicle.vehicleID, date=start_dt.date(),
+            start_time=start_dt, end_time=end_dt,
+            booking_status='pending', job_notes=instructions
         )
 
         try:
@@ -178,9 +154,7 @@ def booking_page():
             db.session.flush()
             new_booking.generate_booking_summary(selected_add_ons=addons_list)
             db.session.commit()
-
             return redirect(url_for('booking_success', booking_id=new_booking.bookingID))
-
         except Exception as e:
             db.session.rollback()
             flash(f"Database Error: {str(e)}", "danger")
@@ -216,11 +190,10 @@ def reschedule_booking(booking_id):
 
         try:
             new_start = datetime.strptime(f"{new_date_str} {new_time_str}", "%Y-%m-%d %I:%M %p")
-            new_end = new_start + timedelta(minutes=booking.service.service_duration)
+            new_end   = new_start + timedelta(minutes=booking.service.service_duration)
             booking.reschedule(new_start, new_end)
             flash(f"Your appointment has been rescheduled to {new_date_str} at {new_time_str}.", "success")
             return redirect(url_for('manage_booking', booking_id=booking.bookingID))
-
         except Exception as e:
             db.session.rollback()
             flash(f"Error rescheduling: {str(e)}", "danger")
@@ -246,7 +219,7 @@ def employee_jobs(employee_id: int):
 @app.route("/employee/<int:employee_id>/jobs/<int:booking_id>", methods=["GET"])
 def employee_job_details(employee_id: int, booking_id: int):
     employee = Employee.query.get_or_404(employee_id)
-    booking = Booking.query.get_or_404(booking_id)
+    booking  = Booking.query.get_or_404(booking_id)
 
     if booking.assigned_employee != employee_id:
         flash("This job is not assigned to that employee (demo check).", "danger")
@@ -292,11 +265,12 @@ def employee_add_job_notes(employee_id: int, booking_id: int):
 
     return redirect(url_for("employee_job_details", employee_id=employee_id, booking_id=booking_id))
 
-# --- UC7  ROUTES (Demo, no auth) [Availability record / Availability details / Approving availability logic / Requesting changes] ----------------------------------------------
+
+# --- UC7 ROUTES (Demo, no auth) [Availability record / Availability details / Approving availability logic / Requesting changes] ----------------------------------------------
 
 @app.route("/manager/<int:manager_id>/availability", methods=["GET"])
 def manager_availability(manager_id: int):
-    manager = Manager.query.get_or_404(manager_id)
+    manager     = Manager.query.get_or_404(manager_id)
     submissions = (
         AvailabilityRecord.query
         .order_by(AvailabilityRecord.status.asc(), AvailabilityRecord.created_at.desc())
@@ -307,7 +281,7 @@ def manager_availability(manager_id: int):
 
 @app.route("/manager/<int:manager_id>/availability/<int:availability_id>", methods=["GET"])
 def manager_availability_details(manager_id: int, availability_id: int):
-    manager = Manager.query.get_or_404(manager_id)
+    manager    = Manager.query.get_or_404(manager_id)
     submission = AvailabilityRecord.query.get_or_404(availability_id)
     return render_template("manager_availability_details.html", manager=manager, submission=submission)
 
@@ -326,7 +300,7 @@ def manager_approve_availability(manager_id: int, availability_id: int):
 
 @app.route("/manager/<int:manager_id>/availability/<int:availability_id>/request-changes", methods=["POST"])
 def manager_request_changes(manager_id: int, availability_id: int):
-    manager = Manager.query.get_or_404(manager_id)
+    manager    = Manager.query.get_or_404(manager_id)
     submission = AvailabilityRecord.query.get_or_404(availability_id)
 
     notes = (request.form.get("manager_notes") or "").strip()
@@ -335,10 +309,10 @@ def manager_request_changes(manager_id: int, availability_id: int):
         return redirect(url_for("manager_availability_details", manager_id=manager_id, availability_id=availability_id))
 
     try:
-        submission.status = "changes_requested"
+        submission.status       = "changes_requested"
         submission.manager_notes = notes
-        submission.managerID = manager.managerID
-        submission.reviewed_at = datetime.now()
+        submission.managerID    = manager.managerID
+        submission.reviewed_at  = datetime.now()
         db.session.commit()
         flash("Changes requested from employee.", "success")
     except Exception as e:
@@ -347,13 +321,185 @@ def manager_request_changes(manager_id: int, availability_id: int):
 
     return redirect(url_for("manager_availability", manager_id=manager_id))
 
+
+# --- UC8 ROUTES (Management Dashboard) ----------------------------------------------
+
+@app.route("/manager/<int:manager_id>/dashboard", methods=["GET"])
+def manager_dashboard(manager_id: int):
+    from datetime import date, timedelta
+
+    # Auth guard
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+
+    manager = Manager.query.get_or_404(manager_id)
+
+    # Period filter (SubFlow S-1)
+    selected_period = request.args.get('period', 'all')
+    period_labels   = {
+        'today': 'Today', 'week': 'This Week',
+        'month': 'This Month', 'year': 'This Year', 'all': 'All Time',
+    }
+    period_label = period_labels.get(selected_period, 'All Time')
+    today = date.today()
+
+    if selected_period == 'today':
+        date_from, date_to = today, today
+    elif selected_period == 'week':
+        date_from = today - timedelta(days=today.weekday())
+        date_to   = date_from + timedelta(days=6)
+    elif selected_period == 'month':
+        date_from, date_to = today.replace(day=1), today
+    elif selected_period == 'year':
+        date_from, date_to = today.replace(month=1, day=1), today
+    else:
+        date_from = date_to = None
+
+    # Query bookings (Steps 3 & 4)
+    query = Booking.query.filter(Booking.is_blocked == False)
+    if date_from and date_to:
+        query = query.filter(Booking.date >= date_from, Booking.date <= date_to)
+    all_bookings = query.all()
+
+    # Alternate flow — insufficient data
+    insufficient_data = (selected_period != 'all' and len(all_bookings) == 0)
+
+    # ── KPI CALCULATIONS (Step 5) ──
+    billable  = [b for b in all_bookings if b.booking_status != 'cancelled' and b.service]
+    revenue   = sum(b.service.base_price for b in billable)
+    bookings  = len(all_bookings)
+    active    = sum(1 for b in all_bookings if b.booking_status in ('in_progress', 'assigned', 'confirmed', 'pending'))
+    completed = sum(1 for b in all_bookings if b.booking_status == 'completed')
+
+    kpis = {
+        'revenue':     f'{revenue:,.2f}',
+        'bookings':    bookings,
+        'active_jobs': active,
+        'completed':   completed,
+    }
+
+    # ── TREND INDICATORS (vs previous calendar month) ──
+    def month_stats(year, month):
+        from calendar import monthrange
+        last_day = monthrange(year, month)[1]
+        first    = date(year, month, 1)
+        last     = date(year, month, last_day)
+        bks = Booking.query.filter(
+            Booking.is_blocked == False,
+            Booking.date >= first,
+            Booking.date <= last
+        ).all()
+        rev  = sum(b.service.base_price for b in bks if b.booking_status != 'cancelled' and b.service)
+        cnt  = len(bks)
+        act  = sum(1 for b in bks if b.booking_status in ('in_progress', 'assigned', 'confirmed', 'pending'))
+        comp = sum(1 for b in bks if b.booking_status == 'completed')
+        return {'revenue': rev, 'bookings': cnt, 'active': act, 'completed': comp}
+
+    def pct_change(curr, prev):
+        if prev == 0:
+            return None
+        return round(((curr - prev) / prev) * 100)
+
+    curr_month = today.month
+    curr_year  = today.year
+    prev_month = curr_month - 1 if curr_month > 1 else 12
+    prev_year  = curr_year if curr_month > 1 else curr_year - 1
+
+    curr_stats = month_stats(curr_year, curr_month)
+    prev_stats = month_stats(prev_year, prev_month)
+
+    trends = {
+        'revenue_pct':   pct_change(curr_stats['revenue'],   prev_stats['revenue']),
+        'bookings_pct':  pct_change(curr_stats['bookings'],  prev_stats['bookings']),
+        'active_pct':    pct_change(curr_stats['active'],    prev_stats['active']),
+        'completed_pct': pct_change(curr_stats['completed'], prev_stats['completed']),
+    }
+
+    # ── BAR CHART — rolling 6 months, revenue + booking count ──
+    monthly_data = []
+    for i in range(5, -1, -1):
+        month_date = (today.replace(day=1) - timedelta(days=i * 28)).replace(day=1)
+        ym_str     = month_date.strftime('%Y-%m')
+        month_bks  = Booking.query.filter(
+            Booking.is_blocked == False,
+            db.func.strftime('%Y-%m', Booking.date) == ym_str
+        ).all()
+        month_rev  = sum(b.service.base_price for b in month_bks if b.booking_status != 'cancelled' and b.service)
+        month_cnt  = len(month_bks)
+        monthly_data.append({
+            'month':         month_date.strftime('%b'),
+            'ym':            ym_str,
+            'value':         month_rev,
+            'booking_count': month_cnt,
+            'active':        ym_str == today.strftime('%Y-%m'),
+            'pct':           0,
+            'bpct':          0,
+        })
+
+    max_rev = max((m['value'] for m in monthly_data), default=1) or 1
+    max_cnt = max((m['booking_count'] for m in monthly_data), default=1) or 1
+    for m in monthly_data:
+        m['pct']  = max(round((m['value']         / max_rev) * 100), 5)
+        m['bpct'] = max(round((m['booking_count'] / max_cnt) * 100), 5)
+
+    # ── DONUT — top 4 services with percentage ──
+    palette        = ['#D82242', '#1A1D21', '#9CA3AF', '#D1D5DB']
+    service_counts = {}
+    for b in all_bookings:
+        if b.service:
+            service_counts[b.service.service_name] = service_counts.get(b.service.service_name, 0) + 1
+
+    total_svc = sum(service_counts.values()) or 1
+    by_service = [
+        {
+            'label': name,
+            'count': count,
+            'color': palette[i % len(palette)],
+            'pct':   round((count / total_svc) * 100),
+        }
+        for i, (name, count) in enumerate(
+            sorted(service_counts.items(), key=lambda x: x[1], reverse=True)[:4]
+        )
+    ]
+
+    chart_data = {'monthly': monthly_data, 'by_service': by_service}
+
+    # ── RECENT BOOKINGS TABLE with month label for JS filtering ──
+    recent_raw = (
+        Booking.query
+        .filter(Booking.is_blocked == False)
+        .order_by(Booking.date.desc(), Booking.start_time.desc())
+        .limit(50).all()
+    )
+    recent_bookings = [
+        {
+            'id':          b.bookingID,
+            'service':     b.service.service_name if b.service else '—',
+            'date':        b.date.strftime('%Y-%m-%d'),
+            'time':        b.start_time.strftime('%I:%M %p'),
+            'status':      b.booking_status,
+            'month_label': b.date.strftime('%b'),
+        }
+        for b in recent_raw
+    ]
+
+    return render_template(
+        'manager_dashboard.html',
+        manager=manager,
+        selected_period=selected_period,
+        period_label=period_label,
+        insufficient_data=insufficient_data,
+        kpis=kpis,
+        trends=trends,
+        chart_data=chart_data,
+        recent_bookings=recent_bookings,
+    )
+
+
 # Redirections
 
 @app.route("/demo/employee", methods=["GET"])
 def demo_employee_redirect():
-    
-    # Redirect to the first Employee found in the DB (demo mode).
- 
     employee = Employee.query.order_by(Employee.employeeID.asc()).first()
     if not employee:
         flash("No employees exist yet. Run seed_data.py (or create an employee) to view UC5.", "danger")
@@ -363,14 +509,12 @@ def demo_employee_redirect():
 
 @app.route("/demo/manager", methods=["GET"])
 def demo_manager_redirect():
-
-    # Redirect to the first Manager found in the DB (demo mode).
- 
     manager = Manager.query.order_by(Manager.managerID.asc()).first()
     if not manager:
         flash("No managers exist yet. Run seed_data.py (or create a manager) to view UC7.", "danger")
         return redirect(url_for("home"))
     return redirect(url_for("manager_availability", manager_id=manager.managerID))
+
 
 # --- UC1: AUTH ROUTES (Login / Signup / Logout / Vehicle Info / Edit profile) ---
 
@@ -385,7 +529,6 @@ def login():
         password   = request.form.get('password', '').strip()
         department = request.form.get('department', '')
 
-        # STAFF EMAIL CHECK HERE 
         if role_tab == 'staff' and not email.endswith('@xpair.com'):
             flash("Staff access requires an @xpair.com email address.", "danger")
             return redirect(url_for('login'))
@@ -396,20 +539,18 @@ def login():
                 session['user_id']   = user.customerID
                 session['user_role'] = 'customer'
                 session['user_name'] = user.first_name
-                # Customer login success — add this line before the redirect
                 flash("Welcome back to Xpair Detailing!", "success")
                 return redirect(url_for('home'))
             flash("Invalid email or password.", "danger")
             return redirect(url_for('login'))
 
-        else:  # staff tab
+        else:
             if department == 'management':
                 user = Manager.query.filter_by(email=email).first()
                 if user and user.authenticate_user(password):
                     session['user_id']   = user.managerID
                     session['user_role'] = 'manager'
                     session['user_name'] = user.first_name
-                    # Manager login success — add before redirect
                     flash("Welcome back to Xpair Detailing!", "success")
                     return redirect(url_for('manager_availability', manager_id=user.managerID))
                 flash("Invalid email, password, or department.", "danger")
@@ -421,7 +562,6 @@ def login():
                     session['user_id']   = user.employeeID
                     session['user_role'] = 'employee'
                     session['user_name'] = user.first_name
-                    # Employee login success — add before redirect
                     flash("Welcome back to Xpair Detailing!", "success")
                     return redirect(url_for('employee_jobs', employee_id=user.employeeID))
                 flash("Invalid email, password, or department.", "danger")
@@ -446,13 +586,10 @@ def signup():
         confirm_pw = request.form.get('confirm_password', '').strip()
         department = request.form.get('department', '')
 
-        # STAFF EMAIL CHECK HERE 
         if role_tab == 'staff' and not email.endswith('@xpair.com'):
             flash("Staff accounts must use a valid @xpair.com business email.", "danger")
             return redirect(url_for('signup'))
-        
-        
-        # Rest of the Validation
+
         if password != confirm_pw:
             flash("Passwords do not match.", "danger")
             return redirect(url_for('signup'))
@@ -461,28 +598,21 @@ def signup():
             flash("Password must be at least 6 characters.", "danger")
             return redirect(url_for('signup'))
 
-
         hashed_pw = generate_password_hash(password)
 
-        if role_tab == 'customer':
-            if Customer.query.filter_by(email=email).first():
-                flash("An account with that email already exists.", "danger")
-                return redirect(url_for('signup'))
+        # Check against the shared person table — covers Customer, Employee, Manager
+        if Person.query.filter_by(email=email).first():
+            flash("An account with that email already exists.", "danger")
+            return redirect(url_for('signup'))
 
+        if role_tab == 'customer':
             new_user = Customer(
-                first_name=f_name,
-                last_name=l_name,
-                email=email,
-                phone=phone,
-                password=hashed_pw,
-                role='customer',
-                address=''
+                first_name=f_name, last_name=l_name,
+                email=email, phone=phone,
+                password=hashed_pw, role='customer', address=''
             )
-            # create_profile() handles db.session.add, commit, and welcome email
             new_user.create_profile()
             flash("Account created! Welcome to Xpair Detailing.", "success")
-
-
             session['user_id']   = new_user.customerID
             session['user_role'] = 'customer'
             session['user_name'] = new_user.first_name
@@ -494,47 +624,27 @@ def signup():
                 return redirect(url_for('signup'))
 
             if department == 'employee':
-                if Employee.query.filter_by(email=email).first():
-                    flash("An account with that email already exists.", "danger")
-                    return redirect(url_for('signup'))
-
                 new_user = Employee(
-                    first_name=f_name,
-                    last_name=l_name,
-                    email=email,
-                    phone=phone,
-                    password=hashed_pw,
-                    role='employee',
-                    experience_level='junior',
-                    position='Detailer',
-                    salary=18.50,
-                    working_hours=40.0
+                    first_name=f_name, last_name=l_name,
+                    email=email, phone=phone, password=hashed_pw,
+                    role='employee', experience_level='junior',
+                    position='Detailer', salary=18.50, working_hours=40.0
                 )
                 new_user.create_profile()
                 flash("Account created! Welcome to Xpair Detailing.", "success")
-
-
                 session['user_id']   = new_user.employeeID
                 session['user_role'] = 'employee'
                 session['user_name'] = new_user.first_name
                 return redirect(url_for('employee_jobs', employee_id=new_user.employeeID))
 
             elif department == 'management':
-                if Manager.query.filter_by(email=email).first():
-                    flash("An account with that email already exists.", "danger")
-                    return redirect(url_for('signup'))
-
                 new_user = Manager(
-                    first_name=f_name,
-                    last_name=l_name,
-                    email=email,
-                    phone=phone,
-                    password=hashed_pw,
-                    max_car_capacity=5
+                    first_name=f_name, last_name=l_name,
+                    email=email, phone=phone,
+                    password=hashed_pw, max_car_capacity=5
                 )
                 new_user.create_profile()
                 flash("Account created! Welcome to Xpair Detailing.", "success")
-
                 session['user_id']   = new_user.managerID
                 session['user_role'] = 'manager'
                 session['user_name'] = new_user.first_name
@@ -545,7 +655,6 @@ def signup():
 
 @app.route('/vehicle-info/<int:customer_id>', methods=['GET', 'POST'])
 def vehicle_info(customer_id):
-
     customer = Customer.query.get_or_404(customer_id)
 
     if request.method == 'POST':
@@ -560,17 +669,10 @@ def vehicle_info(customer_id):
 
             if make and model and year and plate:
                 try:
-                    # Delegates to Customer.add_vehicle() which handles Vehicle
-                    # creation and links it via customerID
                     new_vehicle = customer.add_vehicle(
-                        make=make,
-                        model=model,
-                        year=int(year),
-                        plate=plate,
-                        size=size,
-                        type='Car'
+                        make=make, model=model, year=int(year),
+                        plate=plate, size=size, type='Car'
                     )
-                    # Track this as the customer's active vehicle
                     customer.vehicle_id = new_vehicle.vehicleID
                     db.session.commit()
                 except Exception as e:
@@ -588,6 +690,7 @@ def logout():
     session.clear()
     flash("You have been logged out.", "info")
     return redirect(url_for('home'))
+
 
 # --- EDIT PROFILE ---
 
@@ -609,7 +712,6 @@ def profile():
         return redirect(url_for('login'))
 
     if request.method == 'POST':
-        # Personal Info 
         f_name = request.form.get('first_name', '').strip()
         l_name = request.form.get('last_name', '').strip()
         email  = request.form.get('email', '').strip().lower()
@@ -621,7 +723,6 @@ def profile():
         user.update_phone(phone)
         session['user_name'] = f_name
 
-        # Vehicle Info Page (customer only)
         if role == 'customer':
             make  = request.form.get('make', '').strip()
             model = request.form.get('v_model', '').strip()
@@ -641,9 +742,8 @@ def profile():
                             vehicle.update_size(size)
                     else:
                         new_vehicle = user.add_vehicle(
-                            make=make, model=model,
-                            year=int(year), plate=plate,
-                            size=size, type='Car'
+                            make=make, model=model, year=int(year),
+                            plate=plate, size=size, type='Car'
                         )
                         user.vehicle_id = new_vehicle.vehicleID
                         db.session.commit()
@@ -652,7 +752,6 @@ def profile():
                     flash(f"Vehicle update failed: {str(e)}", "danger")
                     return redirect(url_for('profile'))
 
-        # Password Change
         current_pw = request.form.get('current_password', '').strip()
         new_pw     = request.form.get('new_password', '').strip()
         confirm_pw = request.form.get('confirm_password', '').strip()
@@ -670,8 +769,7 @@ def profile():
             user.update_password(new_pw)
 
         flash("Profile updated successfully.", "success")
-        
-        # Route back to respective dashboard upon successful save
+
         if role == 'employee':
             return redirect(url_for('employee_jobs', employee_id=user.employeeID))
         elif role == 'manager':
@@ -679,12 +777,12 @@ def profile():
         else:
             return redirect(url_for('home'))
 
-    # Get vehicle for customer
     vehicle = None
     if role == 'customer' and user.vehicle_id:
         vehicle = Vehicle.query.get(user.vehicle_id)
 
     return render_template('edit_profile.html', user=user, vehicle=vehicle, role=role)
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
