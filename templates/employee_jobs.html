@@ -1,14 +1,34 @@
 {% extends "base.html" %}
 {% block title %}Employee Jobs{% endblock %}
 
-<!-- UC5: JOB DETAIL PAGE (EMPLOYEE VIEW) -->
+<!-- UC5: JOB LISTING PAGE (EMPLOYEE VIEW) -->
 
 {% block content %}
 <div class="container py-5">
+
+  <!-- UC6: Availability Banner -->
+  <div class="d-flex align-items-center justify-content-between p-3 mb-4 rounded-3"
+       style="background: #FEF3C7; border: 1px solid #FCD34D;">
+    <div class="d-flex align-items-center gap-3">
+      <div style="width:36px; height:36px; border-radius:50%; background:#F59E0B; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <i class="bi bi-calendar-exclamation text-white" style="font-size:1rem;"></i>
+      </div>
+      <div>
+        <div class="fw-bold small" style="color:#92400E;">Time to Submit Your Availability!</div>
+        <div class="small" style="color:#B45309;">Submit your availability for the next scheduling period as soon as possible.</div>
+      </div>
+    </div>
+    <a href="{{ url_for('employee_availabilities', employee_id=employee.employeeID) }}"
+       class="btn btn-sm fw-bold px-3 py-2 text-nowrap"
+       style="background:#F59E0B; color:white; border:none; border-radius:8px;">
+      <i class="bi bi-calendar3 me-1"></i> My Availabilities
+    </a>
+  </div>
+
   <div class="d-flex align-items-end justify-content-between mb-4">
     <div>
-      <h2 class="fw-bold mb-1">My Jobs (UC5)</h2>
-      <p class="text-muted mb-0">Demo Employee ID: {{ employee.employeeID }}</p>
+      <h2 class="fw-bold mb-1">My Jobs</h2>
+      <p class="text-muted mb-0">Employee ID: {{ employee.employeeID }}</p>
     </div>
   </div>
 
@@ -35,7 +55,6 @@
                 ServiceID: {{ job.serviceID if job.serviceID else "—" }} • CustomerID: {{ job.customerID if job.customerID else "—" }}
               </div>
             </div>
-
             <span class="badge rounded-pill
               {% if job.booking_status in ['completed'] %} bg-success-subtle text-success
               {% elif job.booking_status in ['in_progress'] %} bg-warning-subtle text-warning
