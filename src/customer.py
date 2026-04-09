@@ -84,46 +84,37 @@ class Customer(Person):
         }
 
     def book_service(self, serviceID, vehicleID, startTime):
-        from .booking import Booking # solves the problem of circular imports by importing here instead of at the top of the file
-        # Creates and saves a new booking for the customer
+        from .booking import Booking 
+        from .notification_service import NotificationService # Added
+        
         service = db.session.get(Service, serviceID)
         if not service:
             raise ValueError(f"Service with ID {serviceID} not found.")
-        
 
         # Check if a booking already exists for this customer at this time
         existing = Booking.query.filter_by(customerID=self.customerID, start_time=startTime).first()
         if existing:
             raise ValueError("You already have a booking at this time.")
-        
-        
-        # Calculates the end time by adding the service duration to the requested start time
+
         from datetime import timedelta
         end_time = startTime + timedelta(minutes=service.service_duration)
 
-        # Initialized the booking object
         booking = Booking(
-            customerID=self.customerID,  
-            serviceID=serviceID,        
-            vehicleID=vehicleID,         
-            date=startTime.date(),
-            start_time=startTime,
-            end_time=end_time,
-            booking_status='pending'
-        )
-        db.session.add(booking)
-        db.session.flush() # Flush pushes the object to the database to generate an ID 
-
-        # Add booking to history
-        booking_id_str = str(booking.bookingID)
-        self.booking_history = (
-            (self.booking_history + ',' + booking_id_str)
-            if self.booking_history
-            else booking_id_str
+            customerID=self.customerID, serviceID=serviceID, vehicleID=vehicleID,         
+            date=startTime.date(), start_time=startTime, end_time=end_time,
+            booking_status='pending' # Matches the Spec/Contract
         )
         
+        db.session.add(booking)
+        db.session.flush() 
+
+        # History/Vehicle Logic...
+        self.booking_history = (self.booking_history + ',' + str(booking.bookingID)) if self.booking_history else str(booking.bookingID)
         self.vehicle_id = vehicleID
         
+        # Notification
+        NotificationService().notify(event='manager_alert', occupant={'booking': booking, 'message': 'New Pending Booking'})
+
         db.session.commit()
         return booking
 
