@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Edit Profile - Xpair Detailing{% endblock %}
 
+<!-- UC1: PROFILE EDIT PAGE -->
+
 {% block content %}
 <div class="container py-5 d-flex justify-content-center">
     <div class="w-100" style="max-width: 680px;">
@@ -67,7 +69,7 @@
 
                 <hr class="my-4">
 
-                <!-- Vehicle Information (customer only) -->
+                <!-- Vehicle Information -->
                 {% if role == 'customer' %}
                 <div class="section-label mb-3">
                     <i class="bi bi-arrow-left-right text-xpair me-2"></i>

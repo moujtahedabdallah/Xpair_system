@@ -1,9 +1,11 @@
 {% extends 'base.html' %}
 {% block content %}
 
+<!-- UC3: BOOKING PAGE + LOGIC -->
+ 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
-    /* Flatpickr Customization to match Xpair Red */
+    
     .flatpickr-day.selected {
         background: var(--xpair-red) !important;
         border-color: var(--xpair-red) !important;
@@ -183,7 +185,7 @@
 
         const sizeMultipliers = { 'small': 1.0, 'medium': 1.2, 'large': 1.4 };
 
-        // Initialize Calendar
+        // Calendar
         flatpickr(realDateInput, {
             inline: true,
             appendTo: document.getElementById('inline-calendar-container'),
