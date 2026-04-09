@@ -496,6 +496,23 @@ def manager_dashboard(manager_id: int):
     )
 
 
+# --- CUSTOMER: MY BOOKINGS ROUTE ----------------------------------------------
+
+@app.route('/my-bookings')
+def my_bookings():
+    if not session.get('user_id') or session.get('user_role') != 'customer':
+        flash("Please log in to view your bookings.", "danger")
+        return redirect(url_for('login'))
+
+    customer = Customer.query.get_or_404(session['user_id'])
+    bookings = (
+        Booking.query
+        .filter(Booking.customerID == customer.customerID, Booking.is_blocked == False)
+        .order_by(Booking.date.desc(), Booking.start_time.desc())
+        .all()
+    )
+    return render_template('my_bookings.html', customer=customer, bookings=bookings)
+
 # Redirections
 
 @app.route("/demo/employee", methods=["GET"])

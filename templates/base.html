@@ -179,10 +179,17 @@
                     {% endif %}
 
                     {% if session.get('user_id') %}
+                        {% if session.get('user_role') == 'customer' %}
+                        <li class="nav-item me-3">
+                            <a class="nav-link text-dark" href="{{ url_for('my_bookings') }}">
+                                <i class="bi bi-calendar-check me-1"></i> My Bookings
+                            </a>
+                        </li>
+                        {% endif %}
                         <li class="nav-item me-3">
                             <a class="nav-link text-dark" href="{{ url_for('profile') }}">
                                 {% if session.get('user_role') == 'customer' %}
-                                    <i class="bi bi-person-circle me-1"></i> Customer Profile
+                                    <i class="bi bi-person-circle me-1"></i> My Profile
                                 {% elif session.get('user_role') == 'employee' %}
                                     <i class="bi bi-person-badge me-1"></i> Employee Profile
                                 {% elif session.get('user_role') == 'manager' %}

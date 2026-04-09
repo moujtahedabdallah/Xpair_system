@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}My Bookings - Xpair Detailing{% endblock %}
+
+<!-- CUSTOMER: MY BOOKINGS PAGE -->
+
+{% block content %}
+<div class="container py-5">
+
+    <!-- Header -->
+    <div class="d-flex align-items-end justify-content-between mb-4 flex-wrap gap-3">
+        <div>
+            <h2 class="fw-bold mb-1">My Bookings</h2>
+            <p class="text-muted mb-0">View and manage all your appointments</p>
+        </div>
+        <a href="{{ url_for('booking_page') }}" class="btn btn-xpair px-4 py-2 fw-bold rounded-pill shadow-sm">
+            <i class="bi bi-plus-lg me-1"></i> Book New Appointment
+        </a>
+    </div>
+
+    {% if bookings %}
+
+    <!-- Active Bookings -->
+    {% set active = bookings | selectattr('booking_status', 'in', ['pending', 'confirmed', 'in_progress', 'on_hold']) | list %}
+    {% set past = bookings | selectattr('booking_status', 'in', ['completed', 'cancelled']) | list %}
+
+    {% if active %}
+    <h6 class="fw-bold text-uppercase small text-muted mb-3" style="letter-spacing: 0.07em;">
+        <i class="bi bi-lightning me-1 text-xpair"></i> Active Appointments
+    </h6>
+    <div class="card xpair-card p-0 overflow-hidden mb-5">
+        {% for b in active %}
+        <div class="p-4 {% if not loop.last %}border-bottom{% endif %} bg-white">
+            <div class="row align-items-center g-3">
+
+                <!-- Service + Date -->
+                <div class="col-md-5">
+                    <div class="fw-bold mb-1">{{ b.service.service_name if b.service else '—' }}</div>
+                    <div class="text-muted small">
+                        <i class="bi bi-calendar3 me-1"></i>
+                        {{ b.date.strftime('%A, %B %d, %Y') }}
+                        &nbsp;·&nbsp;
+                        <i class="bi bi-clock me-1"></i>
+                        {{ b.start_time.strftime('%I:%M %p') }}
+                    </div>
+                    {% if b.booking_summary %}
+                    <div class="text-muted small mt-1">{{ b.booking_summary }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Booking ID -->
+                <div class="col-md-2">
+                    <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Booking ID</div>
+                    <div class="fw-bold small">BK-{{ b.bookingID }}</div>
+                </div>
+
+                <!-- Status -->
+                <div class="col-md-2">
+                    <span class="badge rounded-pill px-3 py-2
+                        {% if b.booking_status == 'confirmed'   %} bg-success-subtle text-success
+                        {% elif b.booking_status == 'in_progress' %} bg-warning-subtle text-warning
+                        {% elif b.booking_status == 'on_hold'   %} bg-secondary-subtle text-secondary
+                        {% else %} bg-primary-subtle text-primary
+                        {% endif %}">
+                        {{ b.booking_status | replace('_', ' ') | capitalize }}
+                    </span>
+                </div>
+
+                <!-- Actions -->
+                <div class="col-md-3 d-flex gap-2 justify-content-md-end">
+                    {% if b.booking_status not in ['in_progress', 'on_hold'] %}
+                    <a href="{{ url_for('reschedule_booking', booking_id=b.bookingID) }}"
+                       class="btn btn-sm btn-outline-dark fw-bold px-3">
+                        <i class="bi bi-calendar-event me-1"></i> Reschedule
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('manage_booking', booking_id=b.bookingID) }}"
+                       class="btn btn-sm btn-xpair fw-bold px-3">
+                        Manage
+                    </a>
+                </div>
+
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Past Bookings -->
+    {% if past %}
+    <h6 class="fw-bold text-uppercase small text-muted mb-3" style="letter-spacing: 0.07em;">
+        <i class="bi bi-clock-history me-1"></i> Past Appointments
+    </h6>
+    <div class="card xpair-card p-0 overflow-hidden">
+        {% for b in past %}
+        <div class="p-4 {% if not loop.last %}border-bottom{% endif %} bg-white" style="opacity: {% if b.booking_status == 'cancelled' %}0.6{% else %}1{% endif %};">
+            <div class="row align-items-center g-3">
+
+                <!-- Service + Date -->
+                <div class="col-md-5">
+                    <div class="fw-bold mb-1">{{ b.service.service_name if b.service else '—' }}</div>
+                    <div class="text-muted small">
+                        <i class="bi bi-calendar3 me-1"></i>
+                        {{ b.date.strftime('%A, %B %d, %Y') }}
+                        &nbsp;·&nbsp;
+                        <i class="bi bi-clock me-1"></i>
+                        {{ b.start_time.strftime('%I:%M %p') }}
+                    </div>
+                </div>
+
+                <!-- Booking ID -->
+                <div class="col-md-2">
+                    <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Booking ID</div>
+                    <div class="fw-bold small">BK-{{ b.bookingID }}</div>
+                </div>
+
+                <!-- Status -->
+                <div class="col-md-2">
+                    <span class="badge rounded-pill px-3 py-2
+                        {% if b.booking_status == 'completed' %} bg-success-subtle text-success
+                        {% else %} bg-danger-subtle text-danger
+                        {% endif %}">
+                        {{ b.booking_status | capitalize }}
+                    </span>
+                </div>
+
+                <!-- Rebook -->
+                <div class="col-md-3 d-flex justify-content-md-end">
+                    <a href="{{ url_for('booking_page') }}"
+                       class="btn btn-sm btn-outline-dark fw-bold px-3">
+                        <i class="bi bi-arrow-repeat me-1"></i> Book Again
+                    </a>
+                </div>
+
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="card xpair-card p-5 text-center">
+        <div class="mb-4">
+            <div style="width:72px; height:72px; border-radius:50%; background:#F3F4F6; display:inline-flex; align-items:center; justify-content:center;">
+                <i class="bi bi-calendar-x text-muted" style="font-size:1.8rem;"></i>
+            </div>
+        </div>
+        <h4 class="fw-bold mb-2">No bookings yet</h4>
+        <p class="text-muted mb-4">You haven't made any appointments with us yet.<br>Book your first detailing session today.</p>
+        <a href="{{ url_for('booking_page') }}" class="btn btn-xpair px-5 py-3 fw-bold rounded-pill mx-auto" style="width:fit-content;">
+            Book an Appointment <i class="bi bi-arrow-right ms-2"></i>
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
