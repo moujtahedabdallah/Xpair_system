@@ -38,21 +38,20 @@ app.config['MAIL_SUPPRESS_SEND'] = True  # This "mutes" the email but keeps the 
 app.config['SECRET_KEY'] = 'xpair_secret_key_2026'
 
 
-# --- INITIALIZATION ---
+# INITIALIZATION
 mail = Mail()
 db.init_app(app)
 mail.init_app(app)
 
-# Create database tables automatically based on your /src models
+# Create database tables automatically based on your /src models (SQLALCHEMY ORM)
 with app.app_context():
     try:
         db.create_all()
-        print("✅ SUCCESS: Database linked and tables created!")
+        print("SUCCESS: Database linked and tables created")
     except Exception as e:
-        print(f"❌ ERROR: Database sync failed: {e}")
+        print(f"ERROR: Database sync failed: {e}")
 
-
-# --- ROUTES ---
+# ------------------------------------------------------ ALL ROUTES BELOW ------------------------------------------------------ 
 
 @app.route('/')
 def home():
@@ -60,15 +59,16 @@ def home():
     all_services = Service.query.all()
     return render_template('index.html', services=all_services)
 
+# --- UC3 ROUTES (Booking page logic + handling / Booking success confirmation / Post-booking management (reschedule / cancel)  ----------------------------------------------
 
 @app.route('/book', methods=['GET', 'POST'])
 def booking_page():
 
-    # --- HANDLING PAGE LOAD (GET) ---
+    # --- HANDLING PAGE LOAD ---
     if request.method == 'GET':
         all_services = Service.query.all()
 
-        # This dictionary is used to populate the Add-ons list in book.html
+        # Dictionary used to populate the Add-ons list in book.html
         add_ons = {
             "UV Protection for Plastics": 25.00,
             "Detailed Seat Cleaning": 60.00,
@@ -83,9 +83,9 @@ def booking_page():
 
         return render_template('book.html', services=all_services, addons=add_ons)
 
-    # --- HANDLING FORM SUBMISSION (POST) ---
+    # --- HANDLING FORM SUBMISSION ---
     if request.method == 'POST':
-        # 1. Extract guest data only if not logged in as customer
+        # 1. Extract Guest Data Only (if not logged in as customer)
         if session.get('user_role') == 'customer':
             f_name = l_name = email = phone = None
         else:
@@ -94,7 +94,7 @@ def booking_page():
             email  = request.form.get('email')
             phone  = request.form.get('phone')
 
-        # 2. Extract Booking Details
+        # 2. Extract The Booking Details
         service_id = int(request.form.get('serviceID'))
         vehicle_size = request.form.get('vehicleSize').lower()  # Sync with src validation
         date_str = request.form.get('date')  # From Flatpickr
@@ -116,7 +116,7 @@ def booking_page():
             flash(f"Invalid Date or Time selection: {e}", "danger")
             return redirect(url_for('booking_page'))
 
-        # 4. Handle Customer record
+        # 4. Handle Customer Record (if logged in / if guest)
         if session.get('user_role') == 'customer':
             customer = Customer.query.get(session['user_id'])
         else:
@@ -134,7 +134,7 @@ def booking_page():
                 db.session.add(customer)
                 db.session.commit()
 
-        # 5. Handle Vehicle record
+        # 5. Handle Vehicle record (if filled / if not filled or guest)
         new_vehicle = None
 
         if session.get('user_role') == 'customer' and customer.vehicle_id:
@@ -142,7 +142,6 @@ def booking_page():
             if new_vehicle:
                 new_vehicle.update_size(vehicle_size)
             else:
-                # vehicle_id was stale — clear it so the else block runs
                 customer.vehicle_id = None
 
         if new_vehicle is None:
@@ -162,7 +161,7 @@ def booking_page():
             customer.vehicle_id = new_vehicle.vehicleID
             db.session.commit()
 
-        # 6. Integrate UC3: Create the Booking Object
+        # 6. Create the Booking Object
         new_booking = Booking(
             customerID=customer.customerID,
             serviceID=service_id,
@@ -230,7 +229,7 @@ def reschedule_booking(booking_id):
     return render_template('reschedule.html', booking=booking)
 
 
-# --- UC5 / UC7 (Demo, no auth) ----------------------------------------------
+# --- UC5 ROUTES (Demo, no auth) [Job Listing / Job details / Job status updates / Job notes] ----------------------------------------------
 
 @app.route("/employee/<int:employee_id>/jobs", methods=["GET"])
 def employee_jobs(employee_id: int):
@@ -293,6 +292,7 @@ def employee_add_job_notes(employee_id: int, booking_id: int):
 
     return redirect(url_for("employee_job_details", employee_id=employee_id, booking_id=booking_id))
 
+# --- UC7  ROUTES (Demo, no auth) [Availability record / Availability details / Approving availability logic / Requesting changes] ----------------------------------------------
 
 @app.route("/manager/<int:manager_id>/availability", methods=["GET"])
 def manager_availability(manager_id: int):
@@ -347,11 +347,13 @@ def manager_request_changes(manager_id: int, availability_id: int):
 
     return redirect(url_for("manager_availability", manager_id=manager_id))
 
+# Redirections
+
 @app.route("/demo/employee", methods=["GET"])
 def demo_employee_redirect():
-    """
-    Redirect to the first Employee found in the DB (demo mode).
-    """
+    
+    # Redirect to the first Employee found in the DB (demo mode).
+ 
     employee = Employee.query.order_by(Employee.employeeID.asc()).first()
     if not employee:
         flash("No employees exist yet. Run seed_data.py (or create an employee) to view UC5.", "danger")
@@ -361,16 +363,16 @@ def demo_employee_redirect():
 
 @app.route("/demo/manager", methods=["GET"])
 def demo_manager_redirect():
-    """
-    Redirect to the first Manager found in the DB (demo mode).
-    """
+
+    # Redirect to the first Manager found in the DB (demo mode).
+ 
     manager = Manager.query.order_by(Manager.managerID.asc()).first()
     if not manager:
         flash("No managers exist yet. Run seed_data.py (or create a manager) to view UC7.", "danger")
         return redirect(url_for("home"))
     return redirect(url_for("manager_availability", manager_id=manager.managerID))
 
-# --- UC1: AUTH ROUTES (Login / Signup / Logout / Vehicle Info) ---
+# --- UC1: AUTH ROUTES (Login / Signup / Logout / Vehicle Info / Edit profile) ---
 
 from werkzeug.security import generate_password_hash
 
@@ -383,11 +385,10 @@ def login():
         password   = request.form.get('password', '').strip()
         department = request.form.get('department', '')
 
-        # --- STAFF EMAIL CHECK HERE ---
+        # STAFF EMAIL CHECK HERE 
         if role_tab == 'staff' and not email.endswith('@xpair.com'):
             flash("Staff access requires an @xpair.com email address.", "danger")
             return redirect(url_for('login'))
-        # --------------------------------------
 
         if role_tab == 'customer':
             user = Customer.query.filter_by(email=email).first()
@@ -445,11 +446,11 @@ def signup():
         confirm_pw = request.form.get('confirm_password', '').strip()
         department = request.form.get('department', '')
 
-        # --- STAFF EMAIL CHECK HERE ---
+        # STAFF EMAIL CHECK HERE 
         if role_tab == 'staff' and not email.endswith('@xpair.com'):
             flash("Staff accounts must use a valid @xpair.com business email.", "danger")
             return redirect(url_for('signup'))
-        # --------------------------------------
+        
         
         # Rest of the Validation
         if password != confirm_pw:
@@ -544,12 +545,7 @@ def signup():
 
 @app.route('/vehicle-info/<int:customer_id>', methods=['GET', 'POST'])
 def vehicle_info(customer_id):
-    """
-    Route: Post-Signup Vehicle Info (Use Case 1 — Customer only, optional)
-    POST: Uses Customer.add_vehicle() to create and link the Vehicle record,
-          then updates customer.vehicle_id to the newly created vehicle.
-          'Skip for Now' bypasses the DB write entirely.
-    """
+
     customer = Customer.query.get_or_404(customer_id)
 
     if request.method == 'POST':
@@ -613,7 +609,7 @@ def profile():
         return redirect(url_for('login'))
 
     if request.method == 'POST':
-        # --- Personal Info ---
+        # Personal Info 
         f_name = request.form.get('first_name', '').strip()
         l_name = request.form.get('last_name', '').strip()
         email  = request.form.get('email', '').strip().lower()
@@ -625,7 +621,7 @@ def profile():
         user.update_phone(phone)
         session['user_name'] = f_name
 
-        # --- Vehicle Info (customer only) ---
+        # Vehicle Info Page (customer only)
         if role == 'customer':
             make  = request.form.get('make', '').strip()
             model = request.form.get('v_model', '').strip()
@@ -656,7 +652,7 @@ def profile():
                     flash(f"Vehicle update failed: {str(e)}", "danger")
                     return redirect(url_for('profile'))
 
-        # --- Password Change ---
+        # Password Change
         current_pw = request.form.get('current_password', '').strip()
         new_pw     = request.form.get('new_password', '').strip()
         confirm_pw = request.form.get('confirm_password', '').strip()
@@ -683,7 +679,7 @@ def profile():
         else:
             return redirect(url_for('home'))
 
-    # GET: fetch vehicle for customer
+    # Get vehicle for customer
     vehicle = None
     if role == 'customer' and user.vehicle_id:
         vehicle = Vehicle.query.get(user.vehicle_id)
