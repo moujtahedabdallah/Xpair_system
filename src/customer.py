@@ -89,7 +89,14 @@ class Customer(Person):
         service = db.session.get(Service, serviceID)
         if not service:
             raise ValueError(f"Service with ID {serviceID} not found.")
+        
 
+        # Check if a booking already exists for this customer at this time
+        existing = Booking.query.filter_by(customerID=self.customerID, start_time=startTime).first()
+        if existing:
+            raise ValueError("You already have a booking at this time.")
+        
+        
         # Calculates the end time by adding the service duration to the requested start time
         from datetime import timedelta
         end_time = startTime + timedelta(minutes=service.service_duration)
