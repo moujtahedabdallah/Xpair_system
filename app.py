@@ -124,16 +124,30 @@ def booking_page():
         if session.get('user_role') == 'customer':
             customer = db.session.get(Customer, session['user_id'])
         else:
+            f_name = request.form.get('first_name', '').strip()
+            l_name = request.form.get('last_name', '').strip()
+            email  = request.form.get('email', '').strip().lower()
+            phone  = request.form.get('phone', '').strip()
+
+            if not email:
+                flash("Guests must provide an email address.", "danger")
+                return redirect(url_for('booking_page'))
+
             customer = Customer.query.filter_by(email=email).first()
             if not customer:
-                customer = Customer(
-                    first_name=f_name, last_name=l_name,
-                    email=email, phone=phone,
-                    password=generate_password_hash("guest_placeholder_123"),
-                    role="customer", address="Guest Checkout"
-                )
-                db.session.add(customer)
-                db.session.commit()
+                try:
+                    customer = Customer(
+                        first_name=f_name, last_name=l_name,
+                        email=email, phone=phone,
+                        password=generate_password_hash("guest_placeholder_123"),
+                        role="customer", address="Guest Checkout"
+                    )
+                    db.session.add(customer)
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    flash("Could not create guest profile. Please check your contact details.", "danger")
+                    return redirect(url_for('booking_page'))
 
         new_vehicle = None
 

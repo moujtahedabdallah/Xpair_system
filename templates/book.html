@@ -36,7 +36,7 @@
                             <input type="radio" name="serviceID" value="{{ service.serviceID }}" 
                                    class="selectable-card-input service-input" 
                                    data-price="{{ service.base_price }}" 
-                                   data-name="{{ service.service_name }}" required>
+                                   data-name="{{ service.service_name }}">
                             <div class="xpair-selectable-card">
                                 <div>
                                     <div class="package-name">{{ service.service_name }}</div>
@@ -55,7 +55,7 @@
                     {% for size, desc in [('Small', 'Sedan, Coupe'), ('Medium', 'SUV, Truck'), ('Large', 'Van, Large SUV')] %}
                     <div class="col-4">
                         <label class="selectable-card-label">
-                            <input type="radio" name="vehicleSize" value="{{ size }}" class="selectable-card-input size-input" required>
+                            <input type="radio" name="vehicleSize" value="{{ size }}" class="selectable-card-input size-input">
                             <div class="xpair-selectable-card text-center py-3" style="min-height: 100px;">
                                 <span class="fw-bold d-block">{{ size }}</span>
                                 <small class="text-muted">{{ desc }}</small>
@@ -110,7 +110,7 @@
                         <div class="card xpair-card p-4 h-100">
                             <h6 class="fw-bold mb-3">1. Select Date</h6>
                             <div id="inline-calendar-container" class="w-100 d-flex justify-content-center"></div>
-                            <input type="hidden" name="date" id="real-date-input" required>
+                            <input type="hidden" name="date" id="real-date-input">
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -120,7 +120,7 @@
                                 {% for time in ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'] %}
                                 <div class="col-6">
                                     <label class="selectable-card-label">
-                                        <input type="radio" name="time" value="{{ time }}" class="selectable-card-input time-input" required>
+                                        <input type="radio" name="time" value="{{ time }}" class="selectable-card-input time-input">
                                         <div class="xpair-selectable-card py-2 text-center" style="min-height: 50px;">
                                             <span class="fw-bold small">{{ time }}</span>
                                         </div>
@@ -316,6 +316,35 @@
         addonInputs.forEach(function(addon) {
             addon.addEventListener('change', updateSummary);
         });
+
+        // Prevent silent failure for all hidden inputs
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const selectedService = document.querySelector('input[name="serviceID"]:checked');
+            const selectedSize = document.querySelector('input[name="vehicleSize"]:checked');
+            const selectedTime = document.querySelector('input[name="time"]:checked');
+
+            if (!selectedService) {
+                e.preventDefault();
+                alert("Please select a Detailing Package.");
+                return;
+            }
+            if (!selectedSize) {
+                e.preventDefault();
+                alert("Please select a Vehicle Size.");
+                return;
+            }
+            if (!realDateInput.value) {
+                e.preventDefault();
+                alert("Please select a date from the calendar.");
+                return;
+            }
+            if (!selectedTime) {
+                e.preventDefault();
+                alert("Please select an appointment time.");
+                return;
+            }
+        });
+        
     });
 </script>
 {% endblock %}
