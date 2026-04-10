@@ -709,6 +709,24 @@ def manager_dashboard(manager_id: int):
             item['trend_active_pct']    = None
             item['trend_completed_pct'] = None
 
+        # Per-month service breakdown for donut chart update
+        svc_counts = {}
+        for b in month_bks:
+            if b.service:
+                svc_counts[b.service.service_name] = svc_counts.get(b.service.service_name, 0) + 1
+        total_svc_month = sum(svc_counts.values()) or 1
+        item['donut_services'] = [
+            {
+                'label': name,
+                'count': count,
+                'color': palette[i % len(palette)],
+                'pct':   round((count / total_svc_month) * 100),
+            }
+            for i, (name, count) in enumerate(
+                sorted(svc_counts.items(), key=lambda x: x[1], reverse=True)[:4]
+            )
+        ]
+
     chart_data = {'monthly': monthly_data, 'by_service': by_service}
 
     # ── FLAGGED JOBS (on_hold) — need manager attention ──
