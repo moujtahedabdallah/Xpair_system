@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Edit Blocked Slot{% endblock %}
+
+{% block content %}
+<div class="container py-5 d-flex justify-content-center">
+    <div class="w-100" style="max-width: 620px;">
+
+        <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
+           href="{{ url_for('manager_closures', manager_id=manager.managerID) }}">
+            <i class="bi bi-arrow-left me-2"></i> Back to Closures
+        </a>
+
+        <!-- Dark Header -->
+        <div class="text-white py-4 px-4 d-flex align-items-center gap-3"
+             style="background: var(--xpair-dark); border-radius: 16px 16px 0 0;">
+            <div style="width:48px; height:48px; background:var(--xpair-red); border-radius:12px;
+                        display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <i class="bi bi-slash-circle fs-5 text-white"></i>
+            </div>
+            <div>
+                <h4 class="fw-bold mb-0">Edit Blocked Slot</h4>
+                <small class="text-white-50">BK-{{ slot.bookingID }} — update date, time, or reason</small>
+            </div>
+        </div>
+
+        <!-- Form Body -->
+        <div class="bg-white p-4 p-md-5"
+             style="border-radius: 0 0 16px 16px; border: 1px solid var(--xpair-border); border-top: none;">
+            <form method="POST"
+                  action="{{ url_for('manager_edit_blocked_slot', manager_id=manager.managerID, booking_id=slot.bookingID) }}">
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Date</label>
+                    <input type="date" name="date" class="form-control bg-light border-0 py-2"
+                           value="{{ slot.date.strftime('%Y-%m-%d') }}" required>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Start Time</label>
+                        <select name="start_time" class="form-select bg-light border-0">
+                            {% for opt in time_options %}
+                            <option value="{{ opt.value }}"
+                                {% if slot.start_time.strftime('%H:%M') == opt.value %}selected{% endif %}>
+                                {{ opt.label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">End Time</label>
+                        <select name="end_time" class="form-select bg-light border-0">
+                            {% for opt in time_options %}
+                            <option value="{{ opt.value }}"
+                                {% if slot.end_time.strftime('%H:%M') == opt.value %}selected{% endif %}>
+                                {{ opt.label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold small">Reason for Blocking</label>
+                    <textarea name="reason" class="form-control bg-light border-0" rows="3"
+                              placeholder="e.g. Equipment maintenance, Staff meeting..."
+                              maxlength="200">{{ slot.block_reason or '' }}</textarea>
+                    <div class="form-text">Max 200 characters.</div>
+                </div>
+
+                <div class="d-flex gap-3">
+                    <a href="{{ url_for('manager_closures', manager_id=manager.managerID) }}"
+                       class="btn btn-outline-secondary flex-fill py-3 fw-bold rounded-3">Cancel</a>
+                    <button type="submit"
+                            class="btn btn-xpair flex-fill py-3 fw-bold rounded-3">
+                        Save Changes
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

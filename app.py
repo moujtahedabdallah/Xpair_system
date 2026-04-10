@@ -982,6 +982,32 @@ def manager_create_period(manager_id: int):
     return render_template("manager_create_period.html", manager=manager)
 
 
+@app.route("/manager/<int:manager_id>/periods/<int:period_id>/edit", methods=["GET", "POST"])
+def manager_edit_period(manager_id: int, period_id: int):
+    from datetime import datetime
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+    manager = Manager.query.get_or_404(manager_id)
+    sp      = SchedulingPeriod.query.get_or_404(period_id)
+
+    if request.method == "POST":
+        label    = request.form.get("label", "").strip()
+        due_date = request.form.get("due_date", "").strip()
+        try:
+            if label:
+                sp.label = label
+            if due_date:
+                sp.due_date = datetime.strptime(due_date, "%Y-%m-%d").date()
+            db.session.commit()
+            flash(f"Period updated successfully.", "success")
+            return redirect(url_for("manager_periods", manager_id=manager_id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error updating period: {str(e)}", "danger")
+
+    return render_template("manager_edit_period.html", manager=manager, sp=sp)
+
+
 @app.route("/manager/<int:manager_id>/periods/<int:period_id>/open", methods=["POST"])
 def manager_open_period(manager_id: int, period_id: int):
     if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
@@ -1037,13 +1063,81 @@ def manager_bookings(manager_id: int):
 
     bookings = query.order_by(Booking.date.desc(), Booking.start_time.desc()).all()
 
+    # Also fetch blocked slots separately so manager can manage them
+    blocked_slots = Booking.query.filter(Booking.is_blocked == True).order_by(Booking.date.desc()).all()
+
     return render_template(
         'manager_bookings.html',
         manager=manager,
         bookings=bookings,
+        blocked_slots=blocked_slots,
         search_q=search_q,
         search_by=search_by,
     )
+
+
+# --- UC6: EDIT BLOCKED SLOT ----------------------------------------------
+
+@app.route("/manager/<int:manager_id>/blocked-slots/<int:booking_id>/edit", methods=["GET", "POST"])
+def manager_edit_blocked_slot(manager_id: int, booking_id: int):
+    from datetime import datetime
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+
+    manager = Manager.query.get_or_404(manager_id)
+    slot    = Booking.query.get_or_404(booking_id)
+
+    if not slot.is_blocked:
+        flash("This is not a blocked slot.", "danger")
+        return redirect(url_for('manager_bookings', manager_id=manager_id))
+
+    if request.method == 'POST':
+        date_str  = request.form.get('date', '').strip()
+        start_str = request.form.get('start_time', '').strip()
+        end_str   = request.form.get('end_time', '').strip()
+        reason    = request.form.get('reason', '').strip()
+
+        try:
+            start_dt = datetime.strptime(f"{date_str} {start_str}", "%Y-%m-%d %H:%M")
+            end_dt   = datetime.strptime(f"{date_str} {end_str}",   "%Y-%m-%d %H:%M")
+            if end_dt <= start_dt:
+                flash("End time must be after start time.", "danger")
+                return redirect(url_for('manager_edit_blocked_slot', manager_id=manager_id, booking_id=booking_id))
+            slot.date         = start_dt.date()
+            slot.start_time   = start_dt
+            slot.end_time     = end_dt
+            slot.block_reason = reason
+            db.session.commit()
+            flash("Closure updated.", "success")
+            return redirect(url_for('manager_closures', manager_id=manager_id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error updating slot: {str(e)}", "danger")
+
+    time_options = []
+    t = datetime(2000, 1, 1, 6, 0)
+    while t.hour < 22:
+        time_options.append({'value': t.strftime('%H:%M'), 'label': t.strftime('%I:%M %p')})
+        t += timedelta(minutes=30)
+
+    return render_template('manager_edit_blocked_slot.html', manager=manager, slot=slot, time_options=time_options)
+
+
+@app.route("/manager/<int:manager_id>/blocked-slots/<int:booking_id>/unblock", methods=["POST"])
+def manager_unblock_slot(manager_id: int, booking_id: int):
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+
+    slot = Booking.query.get_or_404(booking_id)
+    try:
+        db.session.delete(slot)
+        db.session.commit()
+        flash("Closure removed.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error removing closure: {str(e)}", "danger")
+
+    return redirect(url_for('manager_closures', manager_id=manager_id))
 
 
 @app.route("/manager/<int:manager_id>/bookings/<int:booking_id>/modify", methods=["GET"])
@@ -1282,6 +1376,20 @@ def manager_assign_employee(manager_id: int, booking_id: int):
 
 # --- UC6: BLOCK TIME SLOT ----------------------------------------------
 
+@app.route("/manager/<int:manager_id>/closures", methods=["GET"])
+def manager_closures(manager_id: int):
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+    manager = Manager.query.get_or_404(manager_id)
+    blocked_slots = Booking.query.filter(Booking.is_blocked == True).order_by(Booking.date.asc()).all()
+    time_options = []
+    t = datetime(2000, 1, 1, 6, 0)
+    while t.hour < 22:
+        time_options.append({'value': t.strftime('%H:%M'), 'label': t.strftime('%I:%M %p')})
+        t += timedelta(minutes=30)
+    return render_template('manager_closures.html', manager=manager, blocked_slots=blocked_slots, time_options=time_options)
+
+
 @app.route("/manager/<int:manager_id>/block-slot", methods=["GET", "POST"])
 def manager_block_slot(manager_id: int):
     if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
@@ -1307,8 +1415,8 @@ def manager_block_slot(manager_id: int):
                 return redirect(url_for('manager_block_slot', manager_id=manager_id))
 
             slot = manager.block_time_slot(reason, start_dt, end_dt)
-            flash(f"Time slot blocked successfully (Booking #{slot.bookingID}).", "success")
-            return redirect(url_for('manager_bookings', manager_id=manager_id))
+            flash(f"Closure added successfully.", "success")
+            return redirect(url_for('manager_closures', manager_id=manager_id))
         except Exception as e:
             db.session.rollback()
             flash(f"Error blocking slot: {str(e)}", "danger")

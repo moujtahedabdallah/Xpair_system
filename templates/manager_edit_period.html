@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Edit Scheduling Period{% endblock %}
+
+<!-- MANAGER: EDIT SCHEDULING PERIOD -->
+
+{% block content %}
+<div class="container py-5 d-flex justify-content-center">
+    <div class="w-100" style="max-width: 620px;">
+
+        <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
+           href="{{ url_for('manager_periods', manager_id=manager.managerID) }}">
+            <i class="bi bi-arrow-left me-2"></i> Back to Periods
+        </a>
+
+        <!-- Dark Header -->
+        <div class="text-white py-4 px-4 d-flex align-items-center gap-3"
+             style="background: var(--xpair-dark); border-radius: 16px 16px 0 0;">
+            <div style="width:48px; height:48px; background:var(--xpair-red); border-radius:12px;
+                        display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <i class="bi bi-pencil-square fs-5 text-white"></i>
+            </div>
+            <div>
+                <h4 class="fw-bold mb-0">Edit Scheduling Period</h4>
+                <small class="text-white-50">Update the label or submission due date</small>
+            </div>
+        </div>
+
+        <!-- Form Body -->
+        <div class="bg-white p-4 p-md-5"
+             style="border-radius: 0 0 16px 16px; border: 1px solid var(--xpair-border); border-top: none;">
+
+            <!-- Read-only info -->
+            <div class="p-3 rounded-3 mb-4" style="background:#F8F9FA; border: 1px solid #E5E7EB;">
+                <div class="small fw-bold text-muted text-uppercase mb-2">Period Dates (cannot be changed)</div>
+                <div class="fw-bold">{{ sp.start_date.strftime('%B %d') }} – {{ sp.end_date.strftime('%B %d, %Y') }}</div>
+                <div class="small text-muted mt-1">
+                    Status:
+                    <span class="badge rounded-pill px-2
+                        {% if sp.status == 'open' %}bg-success-subtle text-success
+                        {% elif sp.status == 'upcoming' %}bg-primary-subtle text-primary
+                        {% else %}bg-secondary-subtle text-secondary{% endif %}">
+                        {{ sp.status | capitalize }}
+                    </span>
+                </div>
+            </div>
+
+            <form method="POST"
+                  action="{{ url_for('manager_edit_period', manager_id=manager.managerID, period_id=sp.periodID) }}">
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Period Label</label>
+                    <input type="text" name="label" class="form-control bg-light border-0 py-2"
+                           value="{{ sp.label }}" required>
+                    <div class="form-text">This is what employees see on their availability list.</div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold small">Submission Due Date</label>
+                    <input type="date" name="due_date" class="form-control bg-light border-0 py-2"
+                           value="{{ sp.due_date.strftime('%Y-%m-%d') }}" required>
+                    <div class="form-text">Employees must submit their availability by this date.</div>
+                </div>
+
+                <div class="d-flex gap-3">
+                    <a href="{{ url_for('manager_periods', manager_id=manager.managerID) }}"
+                       class="btn btn-outline-secondary flex-fill py-3 fw-bold rounded-3">Cancel</a>
+                    <button type="submit"
+                            class="btn btn-xpair flex-fill py-3 fw-bold rounded-3">
+                        Save Changes
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
