@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Reschedule Booking{% endblock %}
+
+<!-- UC6: MANAGER RESCHEDULE -->
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+  .flatpickr-day.selected { background: var(--xpair-red) !important; border-color: var(--xpair-red) !important; }
+  .time-slot { cursor: pointer; border: 1.5px solid var(--xpair-border); border-radius: 10px; padding: 12px 16px; transition: all 0.15s; }
+  .time-slot:hover { border-color: var(--xpair-red); background: rgba(216,34,66,0.03); }
+  .time-slot.selected { border-color: var(--xpair-red); background: rgba(216,34,66,0.05); }
+  .time-slot.selected .slot-check { display: inline !important; }
+</style>
+
+<div class="container py-5" style="max-width: 860px;">
+
+  <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
+     href="{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}">
+    <i class="bi bi-arrow-left me-2"></i> Back to Search
+  </a>
+
+  <div class="d-flex justify-content-between align-items-start mb-1">
+    <div>
+      <h2 class="fw-bold mb-1">Modify Booking</h2>
+      <p class="text-muted mb-4">
+        Update appointment details for
+        {% if booking.customer %}{{ booking.customer.first_name }} {{ booking.customer.last_name }}{% else %}Guest{% endif %}
+      </p>
+    </div>
+  </div>
+
+  <!-- Current Details -->
+  <div class="card xpair-card p-4 mb-4">
+    <h6 class="fw-bold mb-3">Current Booking Details</h6>
+    <div class="row g-3 small">
+      <div class="col-md-3"><div class="text-muted text-uppercase" style="font-size:0.65rem;">Booking ID</div><div class="fw-bold">BK-{{ booking.bookingID }}</div></div>
+      <div class="col-md-3"><div class="text-muted text-uppercase" style="font-size:0.65rem;">Customer</div>
+        <div class="fw-bold">{% if booking.customer %}{{ booking.customer.first_name }} {{ booking.customer.last_name }}{% else %}Guest{% endif %}</div></div>
+      <div class="col-md-3"><div class="text-muted text-uppercase" style="font-size:0.65rem;">Service</div><div class="fw-bold">{{ booking.service.service_name if booking.service else '—' }}</div></div>
+      <div class="col-md-3"><div class="text-muted text-uppercase" style="font-size:0.65rem;">Appointment Date</div><div class="fw-bold">{{ booking.date.strftime('%B %d, %Y') }}</div></div>
+    </div>
+  </div>
+
+  <!-- Reschedule Form -->
+  <div class="card xpair-card p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h6 class="fw-bold mb-0">Reschedule Appointment</h6>
+      <a href="{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
+         class="text-muted small text-decoration-none">Change Type</a>
+    </div>
+
+    <form method="POST" action="{{ url_for('manager_reschedule_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}">
+      <div class="mb-4">
+        <label class="form-label fw-bold small">New Date</label>
+        <input type="text" id="date-picker" name="date"
+               class="form-control bg-light border-0 py-2"
+               placeholder="Select new date" required>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label fw-bold small">New Time Slot</label>
+        <div class="row g-2" id="time-slots">
+          {% for slot in time_slots %}
+          <div class="col-md-4 col-6">
+            <div class="time-slot" onclick="selectSlot(this, '{{ slot }}')">
+              <span class="fw-bold small">{{ slot }}</span>
+              <i class="bi bi-check2 slot-check float-end text-xpair" style="display:none;"></i>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="time" id="selected-time" required>
+      </div>
+
+      <div class="d-flex justify-content-end gap-3">
+        <a href="{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
+           class="btn btn-outline-secondary fw-bold px-4">Cancel</a>
+        <button type="submit" class="btn btn-xpair fw-bold px-5">Save Changes</button>
+      </div>
+    </form>
+  </div>
+
+</div>
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+  flatpickr("#date-picker", { minDate: "today", dateFormat: "Y-m-d" });
+
+  function selectSlot(el, time) {
+    document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('selected-time').value = time;
+  }
+</script>
+{% endblock %}
+{% endblock %}

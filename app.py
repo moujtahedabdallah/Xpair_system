@@ -836,6 +836,187 @@ def manager_close_period(manager_id: int, period_id: int):
     flash(f"Period '{sp.label}' has been closed.", "success")
     return redirect(url_for("manager_periods", manager_id=manager_id))
 
+
+# --- UC6 ROUTES (Manager Modify Bookings) ----------------------------------------------
+
+@app.route("/manager/<int:manager_id>/bookings", methods=["GET"])
+def manager_bookings(manager_id: int):
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+
+    manager    = Manager.query.get_or_404(manager_id)
+    search_q   = request.args.get('q', '').strip()
+    search_by  = request.args.get('by', 'all')
+
+    query = Booking.query.filter(Booking.is_blocked == False)
+
+    if search_q:
+        if search_by == 'first_name':
+            query = query.join(Customer).filter(Customer.first_name.ilike(f'%{search_q}%'))
+        elif search_by == 'last_name':
+            query = query.join(Customer).filter(Customer.last_name.ilike(f'%{search_q}%'))
+        elif search_by == 'email':
+            query = query.join(Customer).filter(Customer.email.ilike(f'%{search_q}%'))
+        elif search_by == 'phone':
+            query = query.join(Customer).filter(Customer.phone.ilike(f'%{search_q}%'))
+        else:  # all fields
+            query = query.join(Customer).filter(
+                db.or_(
+                    Customer.first_name.ilike(f'%{search_q}%'),
+                    Customer.last_name.ilike(f'%{search_q}%'),
+                    Customer.email.ilike(f'%{search_q}%'),
+                    Customer.phone.ilike(f'%{search_q}%'),
+                )
+            )
+
+    bookings = query.order_by(Booking.date.desc(), Booking.start_time.desc()).all()
+
+    return render_template(
+        'manager_bookings.html',
+        manager=manager,
+        bookings=bookings,
+        search_q=search_q,
+        search_by=search_by,
+    )
+
+
+@app.route("/manager/<int:manager_id>/bookings/<int:booking_id>/modify", methods=["GET"])
+def manager_modify_booking(manager_id: int, booking_id: int):
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+
+    manager = Manager.query.get_or_404(manager_id)
+    booking = Booking.query.get_or_404(booking_id)
+    return render_template('manager_modify_booking.html', manager=manager, booking=booking)
+
+
+@app.route("/manager/<int:manager_id>/bookings/<int:booking_id>/reschedule", methods=["GET", "POST"])
+def manager_reschedule_booking(manager_id: int, booking_id: int):
+    from datetime import datetime, timedelta
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+
+    manager = Manager.query.get_or_404(manager_id)
+    booking = Booking.query.get_or_404(booking_id)
+
+    if request.method == 'POST':
+        new_date_str = request.form.get('date', '').strip()
+        new_time_str = request.form.get('time', '').strip()
+
+        try:
+            new_start = datetime.strptime(f"{new_date_str} {new_time_str}", "%Y-%m-%d %I:%M %p")
+            new_end   = new_start + timedelta(minutes=booking.service.service_duration)
+            booking.reschedule(new_start, new_end)
+            modified_at = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+            return render_template(
+                'manager_booking_success.html',
+                manager=manager,
+                booking=booking,
+                action='reschedule',
+                new_date=new_start.strftime("%Y-%m-%d"),
+                new_time=f"{new_start.strftime('%I:%M %p')} - {new_end.strftime('%I:%M %p')}",
+                modified_at=modified_at,
+            )
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error rescheduling: {str(e)}", "danger")
+
+    # Build time slots
+    time_slots = [
+        '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
+        '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'
+    ]
+    return render_template(
+        'manager_reschedule_booking.html',
+        manager=manager,
+        booking=booking,
+        time_slots=time_slots,
+    )
+
+
+@app.route("/manager/<int:manager_id>/bookings/<int:booking_id>/change-service", methods=["GET", "POST"])
+def manager_change_service(manager_id: int, booking_id: int):
+    from datetime import datetime, timedelta
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+
+    manager  = Manager.query.get_or_404(manager_id)
+    booking  = Booking.query.get_or_404(booking_id)
+    services = Service.query.all()
+
+    if request.method == 'POST':
+        new_service_id = request.form.get('serviceID', type=int)
+        if not new_service_id:
+            flash("Please select a service.", "danger")
+            return redirect(url_for('manager_change_service', manager_id=manager_id, booking_id=booking_id))
+
+        new_service = db.session.get(Service, new_service_id)
+        if not new_service:
+            flash("Service not found.", "danger")
+            return redirect(url_for('manager_change_service', manager_id=manager_id, booking_id=booking_id))
+
+        try:
+            booking.serviceID = new_service_id
+            # Recalculate end time based on new service duration
+            new_end = booking.start_time + timedelta(minutes=new_service.service_duration)
+            booking.end_time = new_end
+            db.session.commit()
+            modified_at = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+            return render_template(
+                'manager_booking_success.html',
+                manager=manager,
+                booking=booking,
+                action='change_service',
+                new_service=new_service.service_name,
+                modified_at=modified_at,
+            )
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error changing service: {str(e)}", "danger")
+
+    return render_template(
+        'manager_change_service.html',
+        manager=manager,
+        booking=booking,
+        services=services,
+    )
+
+
+@app.route("/manager/<int:manager_id>/bookings/<int:booking_id>/cancel", methods=["GET", "POST"])
+def manager_cancel_booking(manager_id: int, booking_id: int):
+    from datetime import datetime
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+
+    manager = Manager.query.get_or_404(manager_id)
+    booking = Booking.query.get_or_404(booking_id)
+
+    if request.method == 'POST':
+        reason = request.form.get('reason', '').strip()
+        try:
+            booking.booking_status = 'cancelled'
+            if reason:
+                booking.block_reason = reason
+            db.session.commit()
+            modified_at = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+            return render_template(
+                'manager_booking_success.html',
+                manager=manager,
+                booking=booking,
+                action='cancel',
+                reason=reason,
+                modified_at=modified_at,
+            )
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error cancelling booking: {str(e)}", "danger")
+
+    return render_template(
+        'manager_cancel_booking.html',
+        manager=manager,
+        booking=booking,
+    )
+
 # Redirections
 
 @app.route("/demo/employee", methods=["GET"])

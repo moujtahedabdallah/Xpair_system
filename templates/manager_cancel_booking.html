@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Cancel Booking{% endblock %}
+
+<!-- UC6: MANAGER CANCEL BOOKING -->
+
+{% block content %}
+<div class="container py-5" style="max-width: 860px;">
+
+  <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
+     href="{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}">
+    <i class="bi bi-arrow-left me-2"></i> Back to Search
+  </a>
+
+  <h2 class="fw-bold mb-1">Modify Booking</h2>
+  <p class="text-muted mb-4">
+    Update appointment details for
+    {% if booking.customer %}{{ booking.customer.first_name }} {{ booking.customer.last_name }}{% else %}Guest{% endif %}
+  </p>
+
+  <!-- Current Details -->
+  <div class="card xpair-card p-4 mb-4">
+    <h6 class="fw-bold mb-3">Current Booking Details</h6>
+    <div class="row g-3 small">
+      <div class="col-md-3"><div class="text-muted text-uppercase" style="font-size:0.65rem;">Booking ID</div><div class="fw-bold">BK-{{ booking.bookingID }}</div></div>
+      <div class="col-md-3"><div class="text-muted text-uppercase" style="font-size:0.65rem;">Customer</div>
+        <div class="fw-bold">{% if booking.customer %}{{ booking.customer.first_name }} {{ booking.customer.last_name }}{% else %}Guest{% endif %}</div>
+        {% if booking.customer %}<div class="text-muted" style="font-size:0.75rem;">{{ booking.customer.email }}</div>
+        <div class="text-muted" style="font-size:0.75rem;">{{ booking.customer.phone or '' }}</div>{% endif %}
+      </div>
+      <div class="col-md-3"><div class="text-muted text-uppercase" style="font-size:0.65rem;">Service</div>
+        <div class="fw-bold">{{ booking.service.service_name if booking.service else '—' }}</div>
+        <div class="text-muted">${{ "%.2f"|format(booking.service.base_price) if booking.service else '' }}</div></div>
+      <div class="col-md-3"><div class="text-muted text-uppercase" style="font-size:0.65rem;">Appointment</div>
+        <div class="fw-bold">{{ booking.date.strftime('%B %d, %Y') }}</div>
+        <div class="text-muted">{{ booking.start_time.strftime('%I:%M %p') }} - {{ booking.end_time.strftime('%I:%M %p') }}</div></div>
+    </div>
+  </div>
+
+  <!-- Cancel Form -->
+  <div class="card xpair-card p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h6 class="fw-bold mb-0">Cancel Booking</h6>
+      <a href="{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
+         class="text-muted small text-decoration-none">Change Type</a>
+    </div>
+
+    <form method="POST" action="{{ url_for('manager_cancel_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}">
+      <div class="mb-4">
+        <label class="form-label fw-bold small">Cancellation Reason</label>
+        <textarea name="reason" class="form-control bg-light border-0" rows="4"
+                  placeholder="Customer called to cancel."></textarea>
+        <div class="form-text">This reason will be included in the cancellation notification sent to the customer.</div>
+      </div>
+
+      <!-- Warning -->
+      <div class="p-3 mb-4 rounded-3" style="background:#FEF2F2; border:1px solid #FECACA;">
+        <div class="d-flex gap-2">
+          <i class="bi bi-exclamation-triangle" style="color:#EF4444;"></i>
+          <div>
+            <div class="fw-bold small" style="color:#B91C1C;">Warning: This action cannot be undone</div>
+            <div class="small" style="color:#B91C1C;">Cancelling this booking will notify the customer and staff, and free up the time slot.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end gap-3">
+        <a href="{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
+           class="btn btn-outline-secondary fw-bold px-4">Cancel</a>
+        <button type="submit" class="btn btn-xpair fw-bold px-5">Confirm Cancellation</button>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

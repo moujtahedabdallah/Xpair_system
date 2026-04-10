@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Modify Booking{% endblock %}
+
+<!-- UC6: MODIFICATION TYPE SELECTOR -->
+
+{% block content %}
+<div class="container py-5" style="max-width: 860px;">
+
+  <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
+     href="{{ url_for('manager_bookings', manager_id=manager.managerID) }}">
+    <i class="bi bi-arrow-left me-2"></i> Back to Search
+  </a>
+
+  <h2 class="fw-bold mb-1">Modify Booking</h2>
+  <p class="text-muted mb-4">
+    Update appointment details for
+    {% if booking.customer %}{{ booking.customer.first_name }} {{ booking.customer.last_name }}{% else %}Guest{% endif %}
+  </p>
+
+  <!-- Current Booking Details -->
+  <div class="card xpair-card p-4 mb-4">
+    <h6 class="fw-bold mb-3">Current Booking Details</h6>
+    <div class="row g-4">
+      <div class="col-md-6">
+        <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Booking ID</div>
+        <div class="fw-bold">BK-{{ booking.bookingID }}</div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Customer</div>
+        {% if booking.customer %}
+        <div class="fw-bold">{{ booking.customer.first_name }} {{ booking.customer.last_name }}</div>
+        <div class="text-muted small">{{ booking.customer.email }}</div>
+        <div class="text-muted small">{{ booking.customer.phone or '—' }}</div>
+        {% else %}<div class="fw-bold">Guest</div>{% endif %}
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Service</div>
+        <div class="fw-bold">{{ booking.service.service_name if booking.service else '—' }}</div>
+        <div class="text-muted small">${{ "%.2f"|format(booking.service.base_price) if booking.service else '—' }}</div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Vehicle</div>
+        <div class="fw-bold">
+          {% if booking.vehicle %}{{ booking.vehicle.year }} {{ booking.vehicle.make }} {{ booking.vehicle.model }}
+          {% else %}—{% endif %}
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Appointment Date</div>
+        <div class="fw-bold">{{ booking.date.strftime('%B %d, %Y') }}</div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Appointment Time</div>
+        <div class="fw-bold">{{ booking.start_time.strftime('%I:%M %p') }} - {{ booking.end_time.strftime('%I:%M %p') }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modification Type -->
+  <div class="card xpair-card p-4">
+    <h6 class="fw-bold mb-1">Select Modification Type</h6>
+    <p class="text-muted small mb-4">Choose what you would like to modify for this booking</p>
+
+    <div class="row g-3">
+      <!-- Reschedule -->
+      <div class="col-md-4">
+        <a href="{{ url_for('manager_reschedule_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
+           class="text-decoration-none">
+          <div class="p-4 rounded-3 border h-100" style="border-color: var(--xpair-border) !important; transition: all 0.2s;"
+               onmouseover="this.style.borderColor='#3B82F6'; this.style.background='#EFF6FF';"
+               onmouseout="this.style.borderColor='var(--xpair-border)'; this.style.background='white';">
+            <div style="width:40px; height:40px; border-radius:10px; background:#EFF6FF; display:flex; align-items:center; justify-content:center; margin-bottom:12px;">
+              <i class="bi bi-calendar-event" style="color:#3B82F6; font-size:1.1rem;"></i>
+            </div>
+            <div class="fw-bold mb-1 text-dark">Reschedule</div>
+            <div class="small text-muted">Change the appointment date and time</div>
+          </div>
+        </a>
+      </div>
+
+      <!-- Change Service -->
+      <div class="col-md-4">
+        <a href="{{ url_for('manager_change_service', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
+           class="text-decoration-none">
+          <div class="p-4 rounded-3 border h-100" style="border-color: var(--xpair-border) !important; transition: all 0.2s;"
+               onmouseover="this.style.borderColor='#F59E0B'; this.style.background='#FFFBEB';"
+               onmouseout="this.style.borderColor='var(--xpair-border)'; this.style.background='white';">
+            <div style="width:40px; height:40px; border-radius:10px; background:#FFFBEB; display:flex; align-items:center; justify-content:center; margin-bottom:12px;">
+              <i class="bi bi-pencil-square" style="color:#F59E0B; font-size:1.1rem;"></i>
+            </div>
+            <div class="fw-bold mb-1 text-dark">Change Service</div>
+            <div class="small text-muted">Modify the service type or details</div>
+          </div>
+        </a>
+      </div>
+
+      <!-- Cancel -->
+      <div class="col-md-4">
+        <a href="{{ url_for('manager_cancel_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
+           class="text-decoration-none">
+          <div class="p-4 rounded-3 border h-100" style="border-color: var(--xpair-border) !important; transition: all 0.2s;"
+               onmouseover="this.style.borderColor='#EF4444'; this.style.background='#FEF2F2';"
+               onmouseout="this.style.borderColor='var(--xpair-border)'; this.style.background='white';">
+            <div style="width:40px; height:40px; border-radius:10px; background:#FEF2F2; display:flex; align-items:center; justify-content:center; margin-bottom:12px;">
+              <i class="bi bi-x-circle" style="color:#EF4444; font-size:1.1rem;"></i>
+            </div>
+            <div class="fw-bold mb-1 text-dark">Cancel Booking</div>
+            <div class="small text-muted">Cancel this appointment</div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

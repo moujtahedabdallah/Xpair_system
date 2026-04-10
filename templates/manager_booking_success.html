@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Booking Updated{% endblock %}
+
+<!-- UC6: MANAGER BOOKING MODIFICATION SUCCESS -->
+
+{% block content %}
+<div class="container py-5 d-flex justify-content-center">
+  <div style="max-width: 580px; width:100%;">
+
+    <!-- Icon -->
+    <div class="text-center mb-4">
+      {% if action == 'cancel' %}
+      <div style="width:72px; height:72px; border-radius:50%; background:#EF4444; display:inline-flex; align-items:center; justify-content:center;">
+        <i class="bi bi-x-lg text-white" style="font-size:2rem;"></i>
+      </div>
+      {% else %}
+      <div style="width:72px; height:72px; border-radius:50%; background:#16A34A; display:inline-flex; align-items:center; justify-content:center;">
+        <i class="bi bi-check-lg text-white" style="font-size:2rem;"></i>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Title -->
+    <h2 class="fw-bold text-center mb-2">
+      {% if action == 'reschedule' %}Booking Rescheduled Successfully
+      {% elif action == 'change_service' %}Booking Updated Successfully
+      {% else %}Booking Cancelled Successfully
+      {% endif %}
+    </h2>
+    <p class="text-center text-muted mb-4">
+      {% if action == 'cancel' %}The booking has been cancelled and all parties have been notified.
+      {% else %}The appointment has been updated and notifications have been sent.
+      {% endif %}
+    </p>
+
+    <!-- Modification Summary -->
+    <div class="card xpair-card p-4 mb-4">
+      <h6 class="fw-bold mb-3">Modification Summary</h6>
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted small">Booking ID</span>
+        <span class="fw-bold small">BK-{{ booking.bookingID }}</span>
+      </div>
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted small">Customer</span>
+        <span class="fw-bold small">
+          {% if booking.customer %}{{ booking.customer.first_name }} {{ booking.customer.last_name }}{% else %}Guest{% endif %}
+        </span>
+      </div>
+      {% if action == 'reschedule' %}
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted small">New Date</span>
+        <span class="fw-bold small">{{ new_date }}</span>
+      </div>
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted small">New Time</span>
+        <span class="fw-bold small">{{ new_time }}</span>
+      </div>
+      {% elif action == 'change_service' %}
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted small">New Service</span>
+        <span class="fw-bold small">{{ new_service }}</span>
+      </div>
+      {% elif action == 'cancel' %}
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted small">Reason</span>
+        <span class="fw-bold small">{{ reason or '—' }}</span>
+      </div>
+      {% endif %}
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted small">Modified At</span>
+        <span class="fw-bold small">{{ modified_at }}</span>
+      </div>
+      <div class="d-flex justify-content-between py-2 align-items-center">
+        <span class="text-muted small">Status</span>
+        <span class="badge rounded-pill px-3 py-2
+          {% if action == 'cancel' %}bg-danger-subtle text-danger
+          {% else %}bg-success-subtle text-success{% endif %}"
+          style="font-size:0.75rem;">
+          {% if action == 'cancel' %}Cancelled{% else %}Confirmed{% endif %}
+        </span>
+      </div>
+    </div>
+
+    <!-- Notifications Sent -->
+    <div class="p-4 mb-4 rounded-3" style="background:#EFF6FF; border:1px solid #BFDBFE;">
+      <div class="d-flex gap-2 mb-2">
+        <i class="bi bi-envelope" style="color:#2563EB;"></i>
+        <span class="fw-bold small" style="color:#1E40AF;">Notifications Sent</span>
+      </div>
+      <ul class="mb-0 small ps-3" style="color:#1E40AF; list-style:none;">
+        <li><i class="bi bi-check2 me-1"></i> Email confirmation sent to customer{% if booking.customer %} ({{ booking.customer.email }}){% endif %}</li>
+        <li><i class="bi bi-check2 me-1"></i> SMS notification sent to customer{% if booking.customer and booking.customer.phone %} ({{ booking.customer.phone }}){% endif %}</li>
+        <li><i class="bi bi-check2 me-1"></i> Staff notification sent to assigned employees</li>
+        <li><i class="bi bi-check2 me-1"></i> Booking engine updated with new availability</li>
+      </ul>
+    </div>
+
+    <!-- System Updates -->
+    <div class="p-4 mb-4 rounded-3" style="background:#FFFBEB; border:1px solid #FCD34D;">
+      <div class="d-flex gap-2 mb-2">
+        <i class="bi bi-info-circle" style="color:#D97706;"></i>
+        <span class="fw-bold small" style="color:#92400E;">System Updates</span>
+      </div>
+      <ul class="mb-0 small ps-3" style="color:#92400E;">
+        <li>Booking database has been updated</li>
+        {% if action == 'reschedule' %}<li>Schedule has been adjusted for the new time</li>{% endif %}
+        {% if action == 'cancel' %}<li>Time slot has been freed and is now available for new bookings</li>{% endif %}
+        <li>Customer portal has been updated with the changes</li>
+        <li>Employee schedules have been synchronized</li>
+      </ul>
+    </div>
+
+    <!-- CTA -->
+    <div class="text-center mb-3">
+      <a href="{{ url_for('manager_dashboard', manager_id=manager.managerID) }}"
+         class="btn btn-xpair fw-bold px-5 py-3 rounded-pill">
+        Return to Dashboard
+      </a>
+    </div>
+    <p class="text-center text-muted small">
+      {% if action == 'cancel' %}The time slot is now available for new bookings on the website.
+      {% else %}All changes have been reflected across the system and website.{% endif %}
+    </p>
+
+  </div>
+</div>
+{% endblock %}
