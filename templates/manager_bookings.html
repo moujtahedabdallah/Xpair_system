@@ -14,32 +14,82 @@
   <div class="d-flex justify-content-between align-items-start mb-4">
     <div>
       <h2 class="fw-bold mb-1">Modify Bookings</h2>
-      <p class="text-muted mb-0">Search for customer bookings to modify, reschedule, or cancel</p>
+      <p class="text-muted mb-0">Active bookings requiring attention — modify, reschedule, assign, or cancel</p>
     </div>
+    <a href="{{ url_for('manager_booking_history', manager_id=manager.managerID) }}"
+       class="btn btn-outline-secondary fw-bold btn-sm px-3">
+      <i class="bi bi-clock-history me-1"></i> Full History
+    </a>
   </div>
 
-  <!-- Search -->
+  <!-- Filters -->
   <div class="card xpair-card p-4 mb-4">
-    <form method="GET" action="{{ url_for('manager_bookings', manager_id=manager.managerID) }}">
+    <form method="GET" action="{{ url_for('manager_bookings', manager_id=manager.managerID) }}" id="search-form">
+      <input type="hidden" name="by" id="search-by-input" value="{{ search_by }}">
+
+      <!-- Row 1: Text search with field selector -->
       <div class="mb-3">
-        <label class="fw-bold small mb-2 d-block">Search Filter</label>
+        <label class="fw-bold small mb-2 d-block">Search by</label>
         <div class="d-flex gap-2 flex-wrap mb-3">
-          {% for val, label in [('all','All Fields'),('first_name','First Name'),('last_name','Last Name'),('email','Email'),('phone','Phone Number')] %}
-          <a href="?by={{ val }}&q={{ search_q }}"
-             class="btn btn-sm fw-bold px-3 {% if search_by == val %}btn-xpair{% else %}btn-outline-secondary{% endif %}">
-            {{ label }}
-          </a>
+          {% for val, label in [('all','All Fields'),('first_name','First Name'),('last_name','Last Name'),('email','Email'),('phone','Phone'),('booking_id','Booking ID')] %}
+          <button type="button"
+                  class="btn btn-sm fw-bold px-3 filter-btn {% if search_by == val %}btn-xpair{% else %}btn-outline-secondary{% endif %}"
+                  data-val="{{ val }}">{{ label }}</button>
           {% endfor %}
         </div>
         <div class="input-group">
-          <span class="input-group-text bg-light border-0">
-            <i class="bi bi-search text-muted"></i>
-          </span>
-          <input type="text" name="q" value="{{ search_q }}"
+          <span class="input-group-text bg-light border-0"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" name="q" id="search-input" value="{{ search_q }}"
                  class="form-control bg-light border-0 py-2"
-                 placeholder="Search by any field...">
+                 placeholder="Type to search…" autocomplete="off">
+          {% if search_q %}
+          <a href="{{ url_for('manager_bookings', manager_id=manager.managerID) }}"
+             class="btn btn-outline-secondary px-3">✕</a>
+          {% endif %}
           <button type="submit" class="btn btn-xpair fw-bold px-4">Search</button>
         </div>
+      </div>
+
+      <!-- Row 2: Dropdown filters — submit directly, no hidden inputs needed -->
+      <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label fw-bold small mb-1">Status</label>
+          <select name="status" class="form-select bg-light border-0 form-select-sm" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            {% for val, label in [('pending','Pending'),('confirmed','Confirmed'),('in_progress','In Progress'),('assigned','Assigned'),('on_hold','On Hold')] %}
+            <option value="{{ val }}" {% if filter_status == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold small mb-1">Service</label>
+          <select name="service" class="form-select bg-light border-0 form-select-sm" onchange="this.form.submit()">
+            <option value="">All Services</option>
+            {% for svc in all_services %}
+            <option value="{{ svc.serviceID }}" {% if filter_service == svc.serviceID|string %}selected{% endif %}>
+              {{ svc.service_name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold small mb-1">Assigned Employee</label>
+          <select name="employee" class="form-select bg-light border-0 form-select-sm" onchange="this.form.submit()">
+            <option value="">All Employees</option>
+            <option value="unassigned" {% if filter_employee == 'unassigned' %}selected{% endif %}>Unassigned</option>
+            {% for emp in all_employees %}
+            <option value="{{ emp.employeeID }}" {% if filter_employee == emp.employeeID|string %}selected{% endif %}>
+              {{ emp.first_name }} {{ emp.last_name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if filter_status or filter_service or filter_employee %}
+        <div class="col-md-3">
+          <a href="{{ url_for('manager_bookings', manager_id=manager.managerID) }}{% if search_q %}?q={{ search_q }}&by={{ search_by }}{% endif %}"
+             class="btn btn-outline-secondary btn-sm fw-bold w-100">Clear Filters</a>
+        </div>
+        {% endif %}
       </div>
     </form>
   </div>
@@ -48,7 +98,7 @@
   <div class="mb-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h5 class="fw-bold mb-0">
-        {% if search_q %}Search Results{% else %}All Bookings{% endif %}
+        {% if search_q %}Results for "{{ search_q }}"{% else %}Active Bookings{% endif %}
         <span class="text-muted fw-normal small ms-2">({{ bookings|length }})</span>
       </h5>
     </div>
@@ -58,13 +108,16 @@
     {% for b in bookings %}
 
       <!-- Row wrapper: clicking anywhere except the assign link goes to modify page -->
-      <div class="booking-row bg-white rounded-3 border px-4 py-3 position-relative"
-           style="border-color: var(--xpair-border); cursor: pointer;"
+      <div class="booking-row rounded-3 border px-4 py-3 position-relative"
+           style="background: {% if b.booking_status == 'on_hold' %}#FEF2F2{% else %}white{% endif %}; border-color: {% if b.booking_status == 'on_hold' %}#FECACA{% else %}var(--xpair-border){% endif %}; cursor: pointer;"
            onclick="window.location='{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=b.bookingID) }}'">
 
         <!-- Top line: name · BK-ID · badge + chevron -->
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="d-flex align-items-center gap-2 flex-wrap">
+            {% if b.booking_status == 'on_hold' %}
+            <i class="bi bi-flag-fill text-danger" style="font-size:0.85rem;"></i>
+            {% endif %}
             <span class="fw-bold fs-6">
               {% if b.customer %}{{ b.customer.first_name }} {{ b.customer.last_name }}{% else %}Guest{% endif %}
             </span>
@@ -74,6 +127,7 @@
               {% elif b.booking_status == 'in_progress' %} bg-warning-subtle text-warning
               {% elif b.booking_status == 'cancelled'  %} bg-danger-subtle text-danger
               {% elif b.booking_status == 'confirmed'  %} bg-primary-subtle text-primary
+              {% elif b.booking_status == 'on_hold'    %} bg-danger text-white
               {% else %} bg-secondary-subtle text-secondary
               {% endif %}" style="font-size:0.7rem;">
               {{ b.booking_status | replace('_',' ') | capitalize }}
@@ -168,4 +222,22 @@
   .booking-row:hover { background: #F9FAFB !important; box-shadow: 0 2px 12px rgba(0,0,0,0.07) !important; }
   .assign-link:hover { text-decoration: underline !important; }
 </style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const form       = document.getElementById('search-form');
+  const byInput    = document.getElementById('search-by-input');
+  const filterBtns = document.querySelectorAll('.filter-btn');
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => { b.classList.remove('btn-xpair'); b.classList.add('btn-outline-secondary'); });
+      btn.classList.remove('btn-outline-secondary');
+      btn.classList.add('btn-xpair');
+      byInput.value = btn.dataset.val;
+    });
+  });
+</script>
 {% endblock %}

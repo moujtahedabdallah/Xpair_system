@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Resolve Flag{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 620px;">
+
+  <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
+     href="{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}">
+    <i class="bi bi-arrow-left me-2"></i> Back to Booking
+  </a>
+
+  <!-- Dark Header -->
+  <div class="text-white py-4 px-4 d-flex align-items-center gap-3"
+       style="background: var(--xpair-dark); border-radius: 16px 16px 0 0;">
+    <div style="width:48px; height:48px; background:#EF4444; border-radius:12px;
+                display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
+      <i class="bi bi-flag-fill fs-5 text-white"></i>
+    </div>
+    <div>
+      <h4 class="fw-bold mb-0">Resolve Flag</h4>
+      <small class="text-white-50">BK-{{ booking.bookingID }} — {{ booking.customer.first_name ~ ' ' ~ booking.customer.last_name if booking.customer else 'Guest' }}</small>
+    </div>
+  </div>
+
+  <div class="bg-white p-4 p-md-5"
+       style="border-radius: 0 0 16px 16px; border: 1px solid var(--xpair-border); border-top: none;">
+
+    <!-- Flag details -->
+    <div class="p-3 rounded-3 mb-4" style="background:#FEF2F2; border:1px solid #FECACA;">
+      <div class="small fw-bold text-danger mb-1"><i class="bi bi-flag-fill me-1"></i>Flagged by {{ booking.employee.first_name ~ ' ' ~ booking.employee.last_name if booking.employee else 'employee' }}</div>
+      <div class="small text-muted">{{ booking.block_reason or 'No reason provided.' }}</div>
+    </div>
+
+    <!-- Booking summary -->
+    <div class="row g-3 mb-4 small">
+      <div class="col-6">
+        <div class="text-muted fw-bold text-uppercase mb-1" style="font-size:0.68rem;">Service</div>
+        <div class="fw-bold">{{ booking.service.service_name if booking.service else '—' }}</div>
+      </div>
+      <div class="col-6">
+        <div class="text-muted fw-bold text-uppercase mb-1" style="font-size:0.68rem;">Appointment</div>
+        <div class="fw-bold">{{ booking.date.strftime('%b %d, %Y') }} · {{ booking.start_time.strftime('%I:%M %p') }}</div>
+      </div>
+      <div class="col-6">
+        <div class="text-muted fw-bold text-uppercase mb-1" style="font-size:0.68rem;">Customer</div>
+        <div class="fw-bold">{{ (booking.customer.first_name ~ ' ' ~ booking.customer.last_name) if booking.customer else '—' }}</div>
+        {% if booking.customer %}<div class="text-muted">{{ booking.customer.phone or '' }}</div>{% endif %}
+      </div>
+      <div class="col-6">
+        <div class="text-muted fw-bold text-uppercase mb-1" style="font-size:0.68rem;">Assigned Employee</div>
+        <div class="fw-bold">{{ (booking.employee.first_name ~ ' ' ~ booking.employee.last_name) if booking.employee else 'Unassigned' }}</div>
+      </div>
+    </div>
+
+    <hr class="my-4">
+
+    <p class="fw-bold mb-1">How would you like to resolve this flag?</p>
+    <p class="text-muted small mb-4">This will clear the on-hold status. Make sure you've contacted the customer and reassigned the employee if needed before proceeding.</p>
+
+    <form method="POST" action="{{ url_for('manager_resolve_flag', manager_id=manager.managerID, booking_id=booking.bookingID) }}">
+
+      <!-- Reinstate -->
+      <label class="d-block mb-3" style="cursor:pointer;">
+        <input type="radio" name="resolution" value="reinstate" class="d-none resolution-radio" required>
+        <div class="p-4 rounded-3 border resolution-card" style="border-color:var(--xpair-border); transition:all 0.2s;">
+          <div class="d-flex align-items-center gap-3">
+            <div style="width:40px; height:40px; border-radius:10px; background:#ECFDF5; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <i class="bi bi-check2-circle" style="color:#10B981; font-size:1.2rem;"></i>
+            </div>
+            <div>
+              <div class="fw-bold text-dark">Reinstate the Job</div>
+              <div class="small text-muted">Set status back to Confirmed — the employee will see it as active again</div>
+            </div>
+          </div>
+        </div>
+      </label>
+
+      <!-- Cancel -->
+      <label class="d-block mb-4" style="cursor:pointer;">
+        <input type="radio" name="resolution" value="cancel" class="d-none resolution-radio">
+        <div class="p-4 rounded-3 border resolution-card" style="border-color:var(--xpair-border); transition:all 0.2s;">
+          <div class="d-flex align-items-center gap-3">
+            <div style="width:40px; height:40px; border-radius:10px; background:#FEF2F2; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <i class="bi bi-x-circle" style="color:#EF4444; font-size:1.2rem;"></i>
+            </div>
+            <div>
+              <div class="fw-bold text-dark">Cancel the Booking</div>
+              <div class="small text-muted">Mark as cancelled — the job will be removed from the active queue</div>
+            </div>
+          </div>
+        </div>
+      </label>
+
+      <button type="submit" class="btn btn-xpair w-100 py-3 fw-bold rounded-3">
+        Confirm Resolution
+      </button>
+
+    </form>
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.resolution-radio').forEach(radio => {
+  radio.addEventListener('change', () => {
+    document.querySelectorAll('.resolution-card').forEach(card => {
+      card.style.borderColor = 'var(--xpair-border)';
+      card.style.background  = 'white';
+    });
+    const selected = radio.nextElementSibling;
+    selected.style.borderColor = radio.value === 'reinstate' ? '#10B981' : '#EF4444';
+    selected.style.background  = radio.value === 'reinstate' ? '#ECFDF5' : '#FEF2F2';
+  });
+});
+</script>
+{% endblock %}
+
+{% endblock %}

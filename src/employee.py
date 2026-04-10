@@ -109,17 +109,18 @@ class Employee(Person):
         # Fetch the data
         booking = db.session.get(Booking, bookingID)
 
-        # Verify the job actually exists
         if not booking:
             raise ValueError(f"Booking with ID {bookingID} not found.")
                 
-        # Verify this specific employee is allowed to look at it
         if booking.assigned_employee != self.employeeID:
             raise PermissionError("You are not assigned to view this booking.")
         
-        booking.update_block_status(True, block_reason)
+        # Set on_hold status and save reason — do NOT set is_blocked
+        # is_blocked is reserved for manager-created closures only
+        booking.booking_status = 'on_hold'
+        booking.block_reason   = block_reason
+        db.session.commit()
 
-        # Triggers email notification
         from .notification_service import NotificationService
         NotificationService().notify(
             recipient=None,

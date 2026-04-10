@@ -102,9 +102,9 @@
       <div class="card xpair-card p-4 mb-4">
         <h5 class="fw-bold mb-3">Update Status</h5>
 
-        {% if booking.booking_status == 'on_hold' %}
+        {% if booking.is_blocked %}
         <div class="alert alert-warning small mb-3 py-2">
-          <i class="bi bi-lock me-1"></i> This job is on hold — status cannot be changed until the manager resolves the issue.
+          <i class="bi bi-lock me-1"></i> This job has been flagged — status cannot be changed until the manager resolves the issue.
         </div>
         {% endif %}
 
@@ -113,11 +113,10 @@
           <div class="row g-3 align-items-end">
             <div class="col-md-8">
               <label class="form-label fw-bold small text-muted">Select status</label>
-              <select name="booking_status" class="form-select" {% if booking.booking_status in ['on_hold', 'completed', 'cancelled'] %}disabled{% endif %}>
+              <select name="booking_status" class="form-select" {% if booking.is_blocked or booking.booking_status in ['completed', 'cancelled'] %}disabled{% endif %}>
                 {% set status_labels = [
                   ('assigned',    'Assigned'),
                   ('in_progress', 'In Progress'),
-                  ('on_hold',     'On Hold'),
                   ('completed',   'Completed'),
                   ('cancelled',   'Cancelled')
                 ] %}
@@ -130,7 +129,7 @@
             </div>
             <div class="col-md-4">
               <button class="btn btn-xpair w-100 py-2 fw-bold"
-                      {% if booking.booking_status in ['on_hold', 'completed', 'cancelled'] %}disabled{% endif %}>
+                      {% if booking.is_blocked or booking.booking_status in ['completed', 'cancelled'] %}disabled{% endif %}>
                 Save Status
               </button>
             </div>
@@ -142,36 +141,39 @@
         <div class="d-flex align-items-center justify-content-between">
           <div>
             <div class="fw-bold small mb-1">Can't proceed with this job?</div>
-            <div class="text-muted small">Flag it as on hold and notify the manager with a reason.</div>
+            <div class="text-muted small">Flag it to notify the manager with a reason.</div>
           </div>
-          {% if booking.booking_status not in ['on_hold', 'completed', 'cancelled'] %}
+          {% if not booking.is_blocked and booking.booking_status not in ['completed', 'cancelled'] %}
           <button class="btn btn-sm btn-outline-danger fw-bold px-3 ms-3 text-nowrap"
                   data-bs-toggle="collapse" data-bs-target="#reportIssueForm">
             <i class="bi bi-flag me-1"></i> Flag Job
           </button>
-          {% else %}
+          {% elif booking.is_blocked %}
           <span class="badge bg-danger-subtle text-danger ms-3">
-            <i class="bi bi-flag-fill me-1"></i>
-            {% if booking.booking_status == 'on_hold' %}Flagged{% else %}Closed{% endif %}
+            <i class="bi bi-flag-fill me-1"></i> Flagged
+          </span>
+          {% else %}
+          <span class="badge bg-secondary-subtle text-secondary ms-3">
+            <i class="bi bi-check-circle me-1"></i> Closed
           </span>
           {% endif %}
         </div>
 
-        {% if booking.booking_status == 'on_hold' and booking.block_reason %}
+        {% if booking.is_blocked and booking.block_reason %}
         <div class="mt-3 p-3 rounded-3" style="background:#FEF2F2; border:1px solid #FECACA;">
           <div class="small fw-bold text-danger mb-1"><i class="bi bi-exclamation-triangle me-1"></i>Issue Reported — Awaiting Manager Review</div>
           <div class="small text-muted">{{ booking.block_reason }}</div>
         </div>
         {% endif %}
 
-        {% if booking.booking_status not in ['on_hold', 'completed', 'cancelled'] %}
+        {% if not booking.is_blocked and booking.booking_status not in ['completed', 'cancelled'] %}
         <div class="collapse mt-3" id="reportIssueForm">
           <form method="POST"
                 action="{{ url_for('employee_block_job', employee_id=employee.employeeID, booking_id=booking.bookingID) }}">
             <textarea class="form-control bg-light border-0 mb-3" rows="3" name="block_reason"
                       placeholder="Describe the issue (required)..." required></textarea>
             <button type="submit" class="btn btn-danger fw-bold px-4"
-                    onclick="return confirm('This will place the job on hold and notify the manager. Continue?')">
+                    onclick="return confirm('This will flag the job and notify the manager. Continue?')">
               <i class="bi bi-exclamation-triangle me-2"></i>Report Issue & Notify Manager
             </button>
           </form>

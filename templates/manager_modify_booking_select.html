@@ -17,6 +17,20 @@
     {% if booking.customer %}{{ booking.customer.first_name }} {{ booking.customer.last_name }}{% else %}Guest{% endif %}
   </p>
 
+  <!-- Flagged job alert -->
+  {% if booking.booking_status == 'on_hold' %}
+  <div class="p-4 rounded-3 mb-4 d-flex align-items-start gap-3" style="background:#FEF2F2; border:1px solid #FECACA;">
+    <i class="bi bi-flag-fill text-danger mt-1" style="font-size:1.1rem; flex-shrink:0;"></i>
+    <div>
+      <div class="fw-bold text-danger mb-1">This job has been flagged by the assigned employee</div>
+      {% if booking.block_reason %}
+      <div class="small text-muted mb-0"><span class="fw-bold">Reason: </span>{{ booking.block_reason }}</div>
+      {% endif %}
+      <div class="small text-muted mt-1">Contact the customer, reassign the employee if needed, then resolve the flag to reinstate the job.</div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Current Booking Details -->
   <div class="card xpair-card p-4 mb-4">
     <h6 class="fw-bold mb-3">Current Booking Details</h6>
@@ -60,6 +74,16 @@
         <div class="fw-bold">{{ booking.start_time.strftime('%I:%M %p') }} - {{ booking.end_time.strftime('%I:%M %p') }}</div>
       </div>
 
+      <div class="col-md-6">
+        <div class="text-muted small fw-bold text-uppercase mb-1" style="font-size:0.68rem; letter-spacing:0.05em;">Assigned Employee</div>
+        {% if booking.employee %}
+        <div class="fw-bold">{{ booking.employee.first_name }} {{ booking.employee.last_name }}</div>
+        <div class="text-muted small">{{ booking.employee.email }}</div>
+        {% else %}
+        <div class="text-muted fst-italic">Unassigned</div>
+        {% endif %}
+      </div>
+
       <!-- Add-ons -->
       <div class="col-12">
         <div class="text-muted small fw-bold text-uppercase mb-1" style="font-size:0.68rem; letter-spacing:0.05em;">Add-ons</div>
@@ -94,7 +118,27 @@
 
     <div class="row g-3">
 
-      <!-- Reschedule -->
+      <!-- Resolve Flag — only shown when on_hold -->
+      {% if booking.booking_status == 'on_hold' %}
+      <div class="col-12">
+        <a href="{{ url_for('manager_resolve_flag', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
+           class="text-decoration-none">
+          <div class="p-4 rounded-3 border h-100 d-flex align-items-center gap-4"
+               style="border-color:#FECACA !important; background:#FEF2F2; transition: all 0.2s;"
+               onmouseover="this.style.borderColor='#EF4444'; this.style.background='#FEE2E2';"
+               onmouseout="this.style.borderColor='#FECACA'; this.style.background='#FEF2F2';">
+            <div style="width:48px; height:48px; border-radius:12px; background:#EF4444; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <i class="bi bi-flag-fill text-white" style="font-size:1.2rem;"></i>
+            </div>
+            <div>
+              <div class="fw-bold mb-1 text-danger">Resolve Flag</div>
+              <div class="small text-muted">Reinstate the job or cancel it — clears the on-hold status</div>
+            </div>
+            <i class="bi bi-chevron-right text-danger ms-auto"></i>
+          </div>
+        </a>
+      </div>
+      {% endif %}
       <div class="col-md-4">
         <a href="{{ url_for('manager_reschedule_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
            class="text-decoration-none">

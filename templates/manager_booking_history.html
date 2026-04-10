@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}Booking History{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+  <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
+     href="{{ url_for('manager_dashboard', manager_id=manager.managerID) }}">
+    <i class="bi bi-arrow-left me-2"></i> Back to Dashboard
+  </a>
+
+  <div class="d-flex align-items-end justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+      <h2 class="fw-bold mb-1">Booking History</h2>
+      <p class="text-muted mb-0">All bookings ever received — {{ bookings | length }} records</p>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card xpair-card p-4 mb-4">
+    <form method="GET" action="{{ url_for('manager_booking_history', manager_id=manager.managerID) }}" id="search-form">
+      <input type="hidden" name="by" id="search-by-input" value="{{ search_by }}">
+
+      <!-- Row 1: Text search -->
+      <div class="mb-3">
+        <label class="fw-bold small mb-2 d-block">Search by</label>
+        <div class="d-flex gap-2 flex-wrap mb-3">
+          {% for val, label in [('all','All Fields'),('first_name','First Name'),('last_name','Last Name'),('email','Email'),('phone','Phone'),('booking_id','Booking ID')] %}
+          <button type="button"
+                  class="btn btn-sm fw-bold px-3 filter-btn {% if search_by == val %}btn-xpair{% else %}btn-outline-secondary{% endif %}"
+                  data-val="{{ val }}">{{ label }}</button>
+          {% endfor %}
+        </div>
+        <div class="input-group">
+          <span class="input-group-text bg-light border-0"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" name="q" id="search-input" value="{{ search_q }}"
+                 class="form-control bg-light border-0 py-2"
+                 placeholder="Type to search…" autocomplete="off">
+          {% if search_q %}
+          <a href="{{ url_for('manager_booking_history', manager_id=manager.managerID) }}"
+             class="btn btn-outline-secondary px-3">✕</a>
+          {% endif %}
+          <button type="submit" class="btn btn-xpair fw-bold px-4">Search</button>
+        </div>
+      </div>
+
+      <!-- Row 2: Dropdown + date filters -->
+      <div class="row g-3 align-items-end">
+        <div class="col-md-2">
+          <label class="form-label fw-bold small mb-1">Status</label>
+          <select name="status" class="form-select bg-light border-0 form-select-sm" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            {% for val, label in [
+              ('pending','Pending'),('confirmed','Confirmed'),('in_progress','In Progress'),
+              ('assigned','Assigned'),('on_hold','On Hold'),('completed','Completed'),('cancelled','Cancelled')
+            ] %}
+            <option value="{{ val }}" {% if filter_status == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold small mb-1">Service</label>
+          <select name="service" class="form-select bg-light border-0 form-select-sm" onchange="this.form.submit()">
+            <option value="">All Services</option>
+            {% for svc in all_services %}
+            <option value="{{ svc.serviceID }}" {% if filter_service == svc.serviceID|string %}selected{% endif %}>
+              {{ svc.service_name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold small mb-1">Employee</label>
+          <select name="employee" class="form-select bg-light border-0 form-select-sm" onchange="this.form.submit()">
+            <option value="">All Employees</option>
+            <option value="unassigned" {% if filter_employee == 'unassigned' %}selected{% endif %}>Unassigned</option>
+            {% for emp in all_employees %}
+            <option value="{{ emp.employeeID }}" {% if filter_employee == emp.employeeID|string %}selected{% endif %}>
+              {{ emp.first_name }} {{ emp.last_name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold small mb-1">From</label>
+          <input type="date" name="from_date" class="form-control bg-light border-0 form-control-sm"
+                 value="{{ filter_from or '' }}" onchange="this.form.submit()">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold small mb-1">To</label>
+          <input type="date" name="to_date" class="form-control bg-light border-0 form-control-sm"
+                 value="{{ filter_to or '' }}" onchange="this.form.submit()">
+        </div>
+        {% if filter_status or filter_service or filter_employee or filter_from or filter_to %}
+        <div class="col-md-2">
+          <a href="{{ url_for('manager_booking_history', manager_id=manager.managerID) }}{% if search_q %}?q={{ search_q }}&by={{ search_by }}{% endif %}"
+             class="btn btn-outline-secondary btn-sm fw-bold w-100">Clear</a>
+        </div>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  <!-- Stats row -->
+  <div class="row g-3 mb-4">
+    {% set completed_count = bookings | selectattr('booking_status', 'equalto', 'completed') | list | length %}
+    {% set cancelled_count = bookings | selectattr('booking_status', 'equalto', 'cancelled') | list | length %}
+    {% set active_count    = bookings | selectattr('booking_status', 'in', ['pending','confirmed','in_progress','assigned']) | list | length %}
+    {% set flagged_count   = bookings | selectattr('booking_status', 'equalto', 'on_hold') | list | length %}
+    <div class="col-6 col-md-3">
+      <div class="card xpair-card p-3 text-center">
+        <div class="fw-bold fs-4 text-xpair">{{ bookings | length }}</div>
+        <div class="text-muted small">Total</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card xpair-card p-3 text-center">
+        <div class="fw-bold fs-4" style="color:#10B981;">{{ completed_count }}</div>
+        <div class="text-muted small">Completed</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card xpair-card p-3 text-center">
+        <div class="fw-bold fs-4 text-muted">{{ cancelled_count }}</div>
+        <div class="text-muted small">Cancelled</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card xpair-card p-3 text-center">
+        <div class="fw-bold fs-4" style="color:#3B82F6;">{{ active_count }}</div>
+        <div class="text-muted small">Active</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Booking table -->
+  {% if bookings %}
+  <div class="card xpair-card p-0 overflow-hidden">
+    <div class="table-responsive">
+      <table class="table mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">ID</th>
+            <th>Customer</th>
+            <th>Service</th>
+            <th>Date</th>
+            <th>Employee</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in bookings %}
+          <tr style="{% if b.booking_status == 'on_hold' %}background:#FEF2F2;{% endif %}">
+            <td class="ps-4 fw-bold">
+              <a href="{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=b.bookingID) }}"
+                 class="text-dark text-decoration-none">BK-{{ b.bookingID }}</a>
+            </td>
+            <td>
+              {% if b.customer %}
+              <div class="fw-semibold">{{ b.customer.first_name }} {{ b.customer.last_name }}</div>
+              <div class="text-muted small">{{ b.customer.email }}</div>
+              {% else %}<span class="text-muted">Guest</span>{% endif %}
+            </td>
+            <td>
+              <div class="fw-semibold">{{ b.service.service_name if b.service else '—' }}</div>
+              <div class="text-muted small">${{ "%.0f"|format(b.service.base_price) if b.service else '' }}</div>
+            </td>
+            <td>
+              <div class="fw-semibold">{{ b.date.strftime('%b %d, %Y') }}</div>
+              <div class="text-muted small">{{ b.start_time.strftime('%I:%M %p') }}</div>
+            </td>
+            <td>
+              {% if b.employee %}
+                {{ b.employee.first_name }} {{ b.employee.last_name }}
+              {% else %}
+                <span class="text-muted fst-italic">Unassigned</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge rounded-pill px-3 py-2
+                {% if b.booking_status == 'completed'   %} bg-success-subtle text-success
+                {% elif b.booking_status == 'in_progress' %} bg-warning-subtle text-warning
+                {% elif b.booking_status == 'cancelled'  %} bg-danger-subtle text-danger
+                {% elif b.booking_status == 'confirmed'  %} bg-primary-subtle text-primary
+                {% elif b.booking_status == 'on_hold'   %} bg-danger text-white
+                {% else %} bg-secondary-subtle text-secondary
+                {% endif %}">
+                {% if b.booking_status == 'on_hold' %}<i class="bi bi-flag-fill me-1"></i>{% endif %}
+                {{ b.booking_status | replace('_',' ') | capitalize }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="card xpair-card p-5 text-center">
+    <div style="width:64px; height:64px; border-radius:50%; background:#F3F4F6; display:inline-flex; align-items:center; justify-content:center; margin-bottom:1rem;">
+      <i class="bi bi-calendar-x text-muted" style="font-size:1.6rem;"></i>
+    </div>
+    <h5 class="fw-bold mb-2">No bookings found</h5>
+    <p class="text-muted mb-0">Try adjusting your filters.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const byInput    = document.getElementById('search-by-input');
+  const filterBtns = document.querySelectorAll('.filter-btn');
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => { b.classList.remove('btn-xpair'); b.classList.add('btn-outline-secondary'); });
+      btn.classList.remove('btn-outline-secondary');
+      btn.classList.add('btn-xpair');
+      byInput.value = btn.dataset.val;
+    });
+  });
+</script>
+{% endblock %}

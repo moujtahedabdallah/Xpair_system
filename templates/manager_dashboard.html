@@ -252,6 +252,121 @@
         </form>
     </div>
 
+    <!-- FLAGGED JOBS ALERT -->
+    {% if flagged_jobs %}
+    <div class="mb-4 p-4 rounded-3" style="background:#FEF2F2; border:1px solid #FECACA;">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div style="width:40px; height:40px; border-radius:50%; background:#EF4444; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <i class="bi bi-flag-fill text-white"></i>
+          </div>
+          <div>
+            <div class="fw-bold" style="color:#991B1B;">
+              {{ flagged_jobs|length }} Job{{ 's' if flagged_jobs|length != 1 }} Flagged — Requires Your Attention
+            </div>
+            <div class="small" style="color:#B91C1C;">
+              {% for job in flagged_jobs %}
+                JOB-{{ job.bookingID }}
+                ({{ job.employee.first_name ~ ' ' ~ job.employee.last_name if job.employee else 'Unassigned' }}
+                — {{ job.block_reason or 'No reason provided' }}){% if not loop.last %},&nbsp;{% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        <a href="{{ url_for('manager_bookings', manager_id=manager.managerID) }}?by=all&q="
+           class="btn btn-sm fw-bold px-4 py-2 text-nowrap"
+           style="background:#EF4444; color:white; border:none; border-radius:8px;">
+          <i class="bi bi-arrow-right me-1"></i> Review Flagged Jobs
+        </a>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- UNASSIGNED BOOKINGS ALERT -->
+    {% if unassigned_bookings %}
+    <div class="mb-4 p-4 rounded-3" style="background:#FFFBEB; border:1px solid #FDE68A;">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div style="width:40px; height:40px; border-radius:50%; background:#F59E0B; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <i class="bi bi-person-exclamation text-white"></i>
+          </div>
+          <div>
+            <div class="fw-bold" style="color:#92400E;">
+              {{ unassigned_bookings|length }} Booking{{ 's' if unassigned_bookings|length != 1 }} Without an Assigned Employee
+            </div>
+            <div class="small" style="color:#B45309;">
+              {% for b in unassigned_bookings[:3] %}
+                BK-{{ b.bookingID }} ({{ b.date.strftime('%b %d') }}){% if not loop.last %},&nbsp;{% endif %}
+              {% endfor %}
+              {% if unassigned_bookings|length > 3 %} and {{ unassigned_bookings|length - 3 }} more…{% endif %}
+            </div>
+          </div>
+        </div>
+        <a href="{{ url_for('manager_bookings', manager_id=manager.managerID) }}?employee=unassigned"
+           class="btn btn-sm fw-bold px-4 py-2 text-nowrap"
+           style="background:#F59E0B; color:white; border:none; border-radius:8px;">
+          <i class="bi bi-arrow-right me-1"></i> Assign Employees
+        </a>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- TODAY'S JOBS -->
+    {% if todays_jobs %}
+    <div class="card xpair-card p-0 overflow-hidden mb-4">
+      <div class="p-3 px-4 border-bottom d-flex align-items-center justify-content-between bg-white">
+        <h6 class="fw-bold mb-0"><i class="bi bi-calendar-day me-2 text-xpair"></i>Today's Jobs
+          <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-2 fw-normal" style="font-size:0.72rem;">{{ todays_jobs|length }}</span>
+        </h6>
+        <span class="text-muted small">{{ today.strftime('%A, %B %d') }}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table mb-0 align-middle" style="font-size:0.83rem;">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-4">Booking</th>
+              <th>Customer</th>
+              <th>Service</th>
+              <th>Time</th>
+              <th>Address</th>
+              <th>Employee</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in todays_jobs %}
+            <tr>
+              <td class="ps-4 fw-bold">
+                <a href="{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=b.bookingID) }}"
+                   class="text-dark text-decoration-none">BK-{{ b.bookingID }}</a>
+              </td>
+              <td>{{ (b.customer.first_name ~ ' ' ~ b.customer.last_name) if b.customer else '—' }}</td>
+              <td>{{ b.service.service_name if b.service else '—' }}</td>
+              <td class="text-muted">{{ b.start_time.strftime('%I:%M %p') }} – {{ b.end_time.strftime('%I:%M %p') }}</td>
+              <td class="text-muted small">{{ b.service_address or '—' }}</td>
+              <td>
+                {% if b.employee %}{{ b.employee.first_name }} {{ b.employee.last_name }}
+                {% else %}<span class="text-danger fst-italic">Unassigned</span>{% endif %}
+              </td>
+              <td>
+                <span class="badge rounded-pill px-2
+                  {% if b.booking_status == 'completed' %}bg-success-subtle text-success
+                  {% elif b.booking_status == 'in_progress' %}bg-warning-subtle text-warning
+                  {% elif b.booking_status == 'on_hold' %}bg-danger text-white
+                  {% elif b.booking_status == 'confirmed' %}bg-primary-subtle text-primary
+                  {% else %}bg-secondary-subtle text-secondary{% endif %}"
+                  style="font-size:0.7rem;">
+                  {{ b.booking_status | replace('_',' ') | capitalize }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- ALTERNATE FLOW: Insufficient data -->
     {% if insufficient_data %}
     <div class="row g-3 mb-4">
@@ -281,8 +396,8 @@
         <div class="col-6 col-md-3">
             <div class="dash-kpi-card">
                 <div class="dash-kpi-label"><i class="bi bi-currency-dollar me-1"></i>Revenue</div>
-                <div class="dash-kpi-value text-xpair">${{ kpis.revenue }}</div>
-                <div class="dash-kpi-sub">Non-cancelled bookings</div>
+                <div class="dash-kpi-value text-xpair" id="kpi-revenue">${{ kpis.revenue }}</div>
+                <div class="dash-kpi-sub" id="kpi-revenue-sub">Non-cancelled bookings</div>
                 {% if trends.revenue_pct is not none %}
                 <div class="trend-badge {% if trends.revenue_pct > 0 %}trend-up{% elif trends.revenue_pct < 0 %}trend-down{% else %}trend-flat{% endif %}">
                     {% if trends.revenue_pct > 0 %}↑{% elif trends.revenue_pct < 0 %}↓{% else %}→{% endif %}
@@ -296,8 +411,8 @@
         <div class="col-6 col-md-3">
             <div class="dash-kpi-card">
                 <div class="dash-kpi-label"><i class="bi bi-calendar-check me-1"></i>Total Bookings</div>
-                <div class="dash-kpi-value">{{ kpis.bookings }}</div>
-                <div class="dash-kpi-sub">All statuses</div>
+                <div class="dash-kpi-value" id="kpi-bookings">{{ kpis.bookings }}</div>
+                <div class="dash-kpi-sub" id="kpi-bookings-sub">All statuses</div>
                 {% if trends.bookings_pct is not none %}
                 <div class="trend-badge {% if trends.bookings_pct > 0 %}trend-up{% elif trends.bookings_pct < 0 %}trend-down{% else %}trend-flat{% endif %}">
                     {% if trends.bookings_pct > 0 %}↑{% elif trends.bookings_pct < 0 %}↓{% else %}→{% endif %}
@@ -311,13 +426,8 @@
         <div class="col-6 col-md-3">
             <div class="dash-kpi-card">
                 <div class="dash-kpi-label"><i class="bi bi-lightning me-1"></i>Active Jobs</div>
-                <div class="dash-kpi-value">{{ kpis.active_jobs }}</div>
-                <div class="dash-kpi-sub">Pending / in progress</div>
-                <div class="trend-badge {% if trends.active_pct is not none and trends.active_pct > 0 %}trend-up{% elif trends.active_pct is not none and trends.active_pct < 0 %}trend-down{% else %}trend-flat{% endif %}">
-                    {% if trends.active_pct is not none and trends.active_pct > 0 %}↑ {{ trends.active_pct }}% vs prev month
-                    {% elif trends.active_pct is not none and trends.active_pct < 0 %}↓ {{ trends.active_pct|abs }}% vs prev month
-                    {% else %}→ vs prev month{% endif %}
-                </div>
+                <div class="dash-kpi-value" id="kpi-active">{{ kpis.active_jobs }}</div>
+                <div class="dash-kpi-sub" id="kpi-active-sub">Pending / in progress</div>
             </div>
         </div>
 
@@ -325,8 +435,8 @@
         <div class="col-6 col-md-3">
             <div class="dash-kpi-card">
                 <div class="dash-kpi-label"><i class="bi bi-check2-circle me-1"></i>Completed</div>
-                <div class="dash-kpi-value">{{ kpis.completed }}</div>
-                <div class="dash-kpi-sub">Finished jobs</div>
+                <div class="dash-kpi-value" id="kpi-completed">{{ kpis.completed }}</div>
+                <div class="dash-kpi-sub" id="kpi-completed-sub">Finished jobs</div>
                 <div class="trend-badge {% if trends.completed_pct is not none and trends.completed_pct > 0 %}trend-up{% elif trends.completed_pct is not none and trends.completed_pct < 0 %}trend-down{% else %}trend-flat{% endif %}">
                     {% if trends.completed_pct is not none and trends.completed_pct > 0 %}↑ {{ trends.completed_pct }}% vs prev month
                     {% elif trends.completed_pct is not none and trends.completed_pct < 0 %}↓ {{ trends.completed_pct|abs }}% vs prev month
@@ -367,6 +477,14 @@
                              data-month="{{ item.month }}"
                              data-revenue="{{ item.value }}"
                              data-bookings="{{ item.booking_count }}"
+                             data-kpi-revenue="{{ item.kpi_revenue }}"
+                             data-kpi-bookings="{{ item.kpi_bookings }}"
+                             data-kpi-active="{{ item.kpi_active }}"
+                             data-kpi-completed="{{ item.kpi_completed }}"
+                             data-trend-revenue="{{ item.trend_revenue_pct if item.trend_revenue_pct is not none else '' }}"
+                             data-trend-bookings="{{ item.trend_bookings_pct if item.trend_bookings_pct is not none else '' }}"
+                             data-trend-active="{{ item.trend_active_pct if item.trend_active_pct is not none else '' }}"
+                             data-trend-completed="{{ item.trend_completed_pct if item.trend_completed_pct is not none else '' }}"
                              onclick="filterByMonth(this)">
                             <div class="bar-tooltip">
                                 ${{ '{:,.0f}'.format(item.value) }} · {{ item.booking_count }} bookings
@@ -393,6 +511,14 @@
                              data-month="{{ item.month }}"
                              data-revenue="{{ item.value }}"
                              data-bookings="{{ item.booking_count }}"
+                             data-kpi-revenue="{{ item.kpi_revenue }}"
+                             data-kpi-bookings="{{ item.kpi_bookings }}"
+                             data-kpi-active="{{ item.kpi_active }}"
+                             data-kpi-completed="{{ item.kpi_completed }}"
+                             data-trend-revenue="{{ item.trend_revenue_pct if item.trend_revenue_pct is not none else '' }}"
+                             data-trend-bookings="{{ item.trend_bookings_pct if item.trend_bookings_pct is not none else '' }}"
+                             data-trend-active="{{ item.trend_active_pct if item.trend_active_pct is not none else '' }}"
+                             data-trend-completed="{{ item.trend_completed_pct if item.trend_completed_pct is not none else '' }}"
                              onclick="filterByMonth(this)">
                             <div class="bar-tooltip">
                                 {{ item.booking_count }} bookings · ${{ '{:,.0f}'.format(item.value) }}
@@ -443,16 +569,54 @@
         </div>
     </div>
 
+    <!-- EMPLOYEE UTILIZATION -->
+    {% if utilization %}
+    <div class="chart-card mb-4">
+        <div class="chart-card-header">
+            <h6><i class="bi bi-people me-2 text-xpair"></i>Employee Utilization
+                <span class="text-muted fw-normal ms-1" style="font-size:0.78rem;">Active jobs assigned</span>
+            </h6>
+            <a href="{{ url_for('manager_bookings', manager_id=manager.managerID) }}"
+               class="btn btn-sm btn-outline-secondary fw-bold px-3" style="font-size:0.75rem;">Manage</a>
+        </div>
+        <div class="d-flex flex-column gap-3">
+            {% for emp in utilization %}
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="small fw-bold text-dark">{{ emp.name }}</span>
+                    <span class="small text-muted">{{ emp.count }} job{{ 's' if emp.count != 1 }}</span>
+                </div>
+                <div style="background:#F3F4F6; border-radius:6px; height:8px; overflow:hidden;">
+                    <div style="height:100%; border-radius:6px; background:{% if emp.count == 0 %}#E5E7EB{% elif emp.count >= max_util %}var(--xpair-red){% else %}var(--xpair-dark){% endif %}; width:{{ ((emp.count / max_util) * 100)|int if max_util > 0 else 0 }}%;"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- RECENT BOOKINGS TABLE -->
     <div class="card xpair-card p-0 overflow-hidden status-table">
         <div class="p-4 border-bottom bg-white d-flex justify-content-between align-items-center">
-            <h5 class="fw-bold mb-0">Recent Bookings</h5>
-            <a href="{{ url_for('manager_availability', manager_id=manager.managerID) }}"
-               class="btn btn-sm btn-outline-dark fw-bold px-3">
-                <i class="bi bi-calendar3 me-1"></i> View Availability
-            </a>
+            <h5 class="fw-bold mb-0" id="bookings-table-title">Bookings</h5>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('manager_booking_history', manager_id=manager.managerID) }}"
+                   class="btn btn-sm btn-outline-dark fw-bold px-3">
+                    <i class="bi bi-clock-history me-1"></i> Full History
+                </a>
+            </div>
         </div>
-        <div class="table-responsive">
+
+        <!-- Empty state: shown by default, hidden when a bar is clicked -->
+        <div id="table-empty-state" class="p-5 text-center">
+            <div style="width:56px; height:56px; border-radius:50%; background:#F3F4F6; display:inline-flex; align-items:center; justify-content:center; margin-bottom:1rem;">
+                <i class="bi bi-bar-chart text-muted" style="font-size:1.4rem;"></i>
+            </div>
+            <div class="fw-bold mb-1">Click a bar to see bookings</div>
+            <div class="text-muted small">Select a month from the chart above to drill down into its bookings</div>
+        </div>
+
+        <div class="table-responsive" id="bookings-table-wrap" style="display:none;">
             <table class="table mb-0 align-middle" id="bookings-table">
                 <thead class="table-light">
                     <tr>
@@ -465,7 +629,7 @@
                 </thead>
                 <tbody id="bookings-tbody">
                     {% for b in recent_bookings %}
-                    <tr data-month="{{ b.month_label }}">
+                    <tr data-month="{{ b.month_label }}" style="display:none;">
                         <td class="ps-4 fw-bold">BK-{{ b.id }}</td>
                         <td>{{ b.service }}</td>
                         <td>{{ b.date }}</td>
@@ -476,6 +640,7 @@
                                 {% elif b.status == 'in_progress' %} bg-warning-subtle text-warning
                                 {% elif b.status == 'cancelled'  %} bg-danger-subtle text-danger
                                 {% elif b.status == 'confirmed'  %} bg-primary-subtle text-primary
+                                {% elif b.status == 'on_hold'   %} bg-danger text-white
                                 {% else %} bg-secondary-subtle text-secondary
                                 {% endif %}">
                                 {{ b.status | replace('_', ' ') | capitalize }}
@@ -483,9 +648,9 @@
                         </td>
                     </tr>
                     {% endfor %}
-                    {% if recent_bookings | length == 0 %}
-                    <tr><td colspan="5" class="text-muted p-4">No bookings found.</td></tr>
-                    {% endif %}
+                    <tr id="no-month-results" style="display:none;">
+                        <td colspan="5" class="text-muted p-4 text-center">No bookings for this month.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -507,10 +672,28 @@
     // ── CLICK BAR → FILTER TABLE ──
     let activeMonth = null;
 
+    // Default KPI values for reset
+    const defaultKpis = {
+        revenue:   document.getElementById('kpi-revenue')?.textContent,
+        bookings:  document.getElementById('kpi-bookings')?.textContent,
+        active:    document.getElementById('kpi-active')?.textContent,
+        completed: document.getElementById('kpi-completed')?.textContent,
+    };
+
+    function trendBadge(pct, prevMonth) {
+        if (pct === '' || pct === null || pct === undefined) {
+            return `<div class="trend-badge trend-flat">→ no prev data</div>`;
+        }
+        const n = parseFloat(pct);
+        const cls = n > 0 ? 'trend-up' : n < 0 ? 'trend-down' : 'trend-flat';
+        const arrow = n > 0 ? '↑' : n < 0 ? '↓' : '→';
+        const abs = Math.abs(n);
+        return `<div class="trend-badge ${cls}">${arrow} ${abs}% vs ${prevMonth}</div>`;
+    }
+
     function filterByMonth(col) {
         const month = col.dataset.month;
 
-        // Toggle off if same bar clicked again
         if (activeMonth === month) {
             clearMonthFilter();
             return;
@@ -518,12 +701,15 @@
 
         activeMonth = month;
 
-        // Highlight selected bar in both charts
+        // Find previous month label from sibling bars
+        const allBars  = [...document.querySelectorAll('.bar-col')];
+        const thisIdx  = allBars.findIndex(b => b.dataset.month === month && b.closest('#chart-revenue'));
+        const prevMonth = thisIdx > 0 ? allBars[thisIdx - 1].dataset.month : null;
+
         document.querySelectorAll('.bar-col').forEach(c => {
             c.classList.toggle('selected', c.dataset.month === month);
         });
 
-        // Show banner
         const revenue  = parseFloat(col.dataset.revenue).toLocaleString('en-CA', {style:'currency', currency:'CAD', maximumFractionDigits:0});
         const bookings = col.dataset.bookings;
         const banner   = document.getElementById('month-filter-banner');
@@ -531,12 +717,31 @@
             `Showing ${month} — ${revenue} revenue · ${bookings} bookings`;
         banner.style.display = 'flex';
 
-        // Filter table rows
+        // Update KPI values
+        const kpiRevenue = parseFloat(col.dataset.kpiRevenue || 0).toLocaleString('en-CA', {minimumFractionDigits:2, maximumFractionDigits:2});
+        document.getElementById('kpi-revenue').textContent   = '$' + kpiRevenue;
+        document.getElementById('kpi-bookings').textContent  = col.dataset.kpiBookings  || '0';
+        document.getElementById('kpi-active').textContent    = col.dataset.kpiActive    || '0';
+        document.getElementById('kpi-completed').textContent = col.dataset.kpiCompleted || '0';
+        document.getElementById('kpi-revenue-sub').textContent   = `${month} revenue`;
+        document.getElementById('kpi-bookings-sub').textContent  = `${month} bookings`;
+        document.getElementById('kpi-active-sub').textContent    = `${month} active jobs`;
+
+        // Update trend badges
+        const prevLabel = prevMonth || 'prev month';
+        document.getElementById('kpi-revenue').closest('.dash-kpi-card').querySelector('.trend-badge').outerHTML   = trendBadge(col.dataset.trendRevenue,   prevLabel);
+        document.getElementById('kpi-bookings').closest('.dash-kpi-card').querySelector('.trend-badge').outerHTML  = trendBadge(col.dataset.trendBookings,  prevLabel);
+        document.getElementById('kpi-completed').closest('.dash-kpi-card').querySelector('.trend-badge').outerHTML = trendBadge(col.dataset.trendCompleted, prevLabel);
+
+        // Show table
+        document.getElementById('table-empty-state').style.display  = 'none';
+        document.getElementById('bookings-table-wrap').style.display = '';
+        document.getElementById('bookings-table-title').textContent  = `${month} Bookings`;
+
         document.querySelectorAll('#bookings-tbody tr[data-month]').forEach(row => {
             row.style.display = row.dataset.month === month ? '' : 'none';
         });
 
-        // Show "no results" if all hidden
         const visible = [...document.querySelectorAll('#bookings-tbody tr[data-month]')]
             .filter(r => r.style.display !== 'none');
         const noRow = document.getElementById('no-month-results');
@@ -547,9 +752,27 @@
         activeMonth = null;
         document.querySelectorAll('.bar-col').forEach(c => c.classList.remove('selected'));
         document.getElementById('month-filter-banner').style.display = 'none';
-        document.querySelectorAll('#bookings-tbody tr[data-month]').forEach(r => r.style.display = '');
+
+        // Restore KPI values and subtitles — page reload is cleanest for trend badges
+        document.getElementById('kpi-revenue').textContent   = defaultKpis.revenue;
+        document.getElementById('kpi-bookings').textContent  = defaultKpis.bookings;
+        document.getElementById('kpi-active').textContent    = defaultKpis.active;
+        document.getElementById('kpi-completed').textContent = defaultKpis.completed;
+        document.getElementById('kpi-revenue-sub').textContent   = 'Non-cancelled bookings';
+        document.getElementById('kpi-bookings-sub').textContent  = 'All statuses';
+        document.getElementById('kpi-active-sub').textContent    = 'Pending / in progress';
+
+        // Hide table
+        document.getElementById('table-empty-state').style.display  = '';
+        document.getElementById('bookings-table-wrap').style.display = 'none';
+        document.getElementById('bookings-table-title').textContent  = 'Bookings';
+
+        document.querySelectorAll('#bookings-tbody tr[data-month]').forEach(r => r.style.display = 'none');
         const noRow = document.getElementById('no-month-results');
         if (noRow) noRow.style.display = 'none';
+
+        // Reload page to restore original trend badges
+        window.location.reload();
     }
 </script>
 {% endblock %}

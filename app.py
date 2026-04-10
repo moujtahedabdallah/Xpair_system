@@ -266,8 +266,8 @@ def employee_update_job_status(employee_id: int, booking_id: int):
 
     new_status = (request.form.get("booking_status") or "").strip()
     try:
-        if booking.booking_status == 'on_hold':
-            flash("This job is on hold. The manager must resolve the issue before the status can be changed.", "danger")
+        if booking.is_blocked:
+            flash("This job has been flagged. The manager must resolve the issue before the status can be changed.", "danger")
             return redirect(url_for("employee_job_details", employee_id=employee_id, booking_id=booking_id))
         booking.update_job_status(new_status)
         flash(f"Job status updated to '{new_status}'.", "success")
@@ -305,7 +305,7 @@ def employee_schedule(employee_id: int):
     employee = Employee.query.get_or_404(employee_id)
     periods  = SchedulingPeriod.query.order_by(SchedulingPeriod.start_date.desc()).all()
 
-    # Group confirmed/in-progress bookings by which scheduling period their date falls within
+    # Group confirmed/in-progress bookings by scheduling period
     all_assigned = (
         Booking.query
         .filter(
@@ -328,7 +328,35 @@ def employee_schedule(employee_id: int):
                 'bookings': bookings_in_period,
             })
 
-    return render_template("employee_schedule.html", employee=employee, schedule_periods=schedule_periods)
+    # Flagged jobs — visible but not clickable
+    flagged_jobs = (
+        Booking.query
+        .filter(
+            Booking.assigned_employee == employee_id,
+            Booking.booking_status == 'on_hold',
+            Booking.is_blocked == False,
+        )
+        .order_by(Booking.date.asc())
+        .all()
+    )
+
+    # Show availability banner only if there's an open period the employee hasn't submitted for yet
+    open_period = SchedulingPeriod.query.filter_by(status='open').first()
+    if open_period:
+        already_submitted = AvailabilityRecord.query.filter_by(
+            employeeID=employee_id,
+            periodID=open_period.periodID
+        ).first()
+        show_availability_banner = already_submitted is None
+    else:
+        show_availability_banner = False
+
+    return render_template("employee_schedule.html",
+        employee=employee,
+        schedule_periods=schedule_periods,
+        flagged_jobs=flagged_jobs,
+        show_availability_banner=show_availability_banner,
+    )
 
 
 # --- UC5: JOB HISTORY (view_job_history) ----------------------------------------------
@@ -578,9 +606,17 @@ def manager_dashboard(manager_id: int):
 
     max_rev = max((m['value'] for m in monthly_data), default=1) or 1
     max_cnt = max((m['booking_count'] for m in monthly_data), default=1) or 1
-    for m in monthly_data:
+    for idx, m in enumerate(monthly_data):
         m['pct']  = max(round((m['value']         / max_rev) * 100), 5)
         m['bpct'] = max(round((m['booking_count'] / max_cnt) * 100), 5)
+        # Compute trend vs previous month in the chart window
+        if idx > 0:
+            prev = monthly_data[idx - 1]
+            m['trend_revenue_pct']   = pct_change(m['value'],         prev['value'])
+            m['trend_bookings_pct']  = pct_change(m['booking_count'], prev['booking_count'])
+        else:
+            m['trend_revenue_pct']   = None
+            m['trend_bookings_pct']  = None
 
     # ── DONUT — top 4 services with percentage ──
     palette        = ['#D82242', '#1A1D21', '#9CA3AF', '#D1D5DB']
@@ -602,9 +638,7 @@ def manager_dashboard(manager_id: int):
         )
     ]
 
-    chart_data = {'monthly': monthly_data, 'by_service': by_service}
-
-    # ── RECENT BOOKINGS TABLE with month label for JS filtering ──
+    # ── RECENT BOOKINGS (fetched here so KPI loop can use it) ──
     recent_raw = (
         Booking.query
         .filter(Booking.is_blocked == False)
@@ -623,6 +657,79 @@ def manager_dashboard(manager_id: int):
         for b in recent_raw
     ]
 
+    # ── PER-MONTH KPI DATA for JS-driven KPI updates on bar click ──
+    for idx, item in enumerate(monthly_data):
+        month_bks = [b for b in recent_raw if b.date.strftime('%b') == item['month']]
+        item['kpi_revenue']   = round(sum(b.service.base_price for b in month_bks if b.booking_status != 'cancelled' and b.service), 2)
+        item['kpi_bookings']  = len(month_bks)
+        item['kpi_active']    = sum(1 for b in month_bks if b.booking_status in ('pending','confirmed','in_progress','assigned'))
+        item['kpi_completed'] = sum(1 for b in month_bks if b.booking_status == 'completed')
+        if idx > 0:
+            prev = monthly_data[idx - 1]
+            item['trend_active_pct']    = pct_change(item['kpi_active'],    prev.get('kpi_active', 0))
+            item['trend_completed_pct'] = pct_change(item['kpi_completed'], prev.get('kpi_completed', 0))
+        else:
+            item['trend_active_pct']    = None
+            item['trend_completed_pct'] = None
+
+    chart_data = {'monthly': monthly_data, 'by_service': by_service}
+
+    # ── FLAGGED JOBS (on_hold) — need manager attention ──
+    flagged_jobs = (
+        Booking.query
+        .filter(Booking.booking_status == 'on_hold', Booking.is_blocked == False)
+        .order_by(Booking.date.asc())
+        .all()
+    )
+
+    # ── UNASSIGNED ACTIVE BOOKINGS ──
+    unassigned_bookings = (
+        Booking.query
+        .filter(
+            Booking.is_blocked == False,
+            Booking.assigned_employee == None,
+            Booking.booking_status.in_(['pending', 'confirmed'])
+        )
+        .order_by(Booking.date.asc())
+        .all()
+    )
+
+    # ── TODAY'S JOBS ──
+    todays_jobs = (
+        Booking.query
+        .filter(
+            Booking.is_blocked == False,
+            Booking.date == today,
+            Booking.booking_status.in_(['confirmed', 'in_progress', 'assigned', 'pending', 'on_hold'])
+        )
+        .order_by(Booking.start_time.asc())
+        .all()
+    )
+
+    # ── EMPLOYEE UTILIZATION — active jobs per employee ──
+    all_employees = Employee.query.order_by(Employee.first_name).all()
+    utilization = []
+    for emp in all_employees:
+        count = Booking.query.filter(
+            Booking.is_blocked == False,
+            Booking.assigned_employee == emp.employeeID,
+            Booking.booking_status.in_(['pending', 'confirmed', 'in_progress', 'assigned', 'on_hold'])
+        ).count()
+        utilization.append({
+            'name':  f"{emp.first_name} {emp.last_name}",
+            'count': count,
+            'id':    emp.employeeID,
+        })
+    max_util = max((u['count'] for u in utilization), default=1) or 1
+
+    # ── FLAGGED JOBS (on_hold) — need manager attention ──
+    flagged_jobs = (
+        Booking.query
+        .filter(Booking.booking_status == 'on_hold', Booking.is_blocked == False)
+        .order_by(Booking.date.asc())
+        .all()
+    )
+
     return render_template(
         'manager_dashboard.html',
         manager=manager,
@@ -633,6 +740,88 @@ def manager_dashboard(manager_id: int):
         trends=trends,
         chart_data=chart_data,
         recent_bookings=recent_bookings,
+        flagged_jobs=flagged_jobs,
+        unassigned_bookings=unassigned_bookings,
+        todays_jobs=todays_jobs,
+        utilization=utilization,
+        max_util=max_util,
+        today=today,
+    )
+
+
+# --- MANAGER: BOOKING HISTORY ----------------------------------------------
+
+@app.route("/manager/<int:manager_id>/booking-history", methods=["GET"])
+def manager_booking_history(manager_id: int):
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+
+    manager         = Manager.query.get_or_404(manager_id)
+    filter_status   = request.args.get('status', '').strip()
+    filter_service  = request.args.get('service', '').strip()
+    filter_from     = request.args.get('from_date', '').strip()
+    filter_to       = request.args.get('to_date', '').strip()
+    filter_employee = request.args.get('employee', '').strip()
+    search_q        = request.args.get('q', '').strip()
+    search_by       = request.args.get('by', 'all')
+    all_services    = Service.query.order_by(Service.service_name).all()
+    all_employees   = Employee.query.order_by(Employee.first_name).all()
+
+    query = Booking.query.filter(Booking.is_blocked == False)
+
+    if filter_status:
+        query = query.filter(Booking.booking_status == filter_status)
+    if filter_service:
+        query = query.filter(Booking.serviceID == int(filter_service))
+    if filter_from:
+        query = query.filter(Booking.date >= datetime.strptime(filter_from, '%Y-%m-%d').date())
+    if filter_to:
+        query = query.filter(Booking.date <= datetime.strptime(filter_to, '%Y-%m-%d').date())
+    if filter_employee == 'unassigned':
+        query = query.filter(Booking.assigned_employee == None)
+    elif filter_employee:
+        query = query.filter(Booking.assigned_employee == int(filter_employee))
+
+    if search_q:
+        if search_by == 'booking_id':
+            try:
+                bk_id = int(search_q.lstrip('BK-').lstrip('bk-'))
+                query = query.filter(Booking.bookingID == bk_id)
+            except ValueError:
+                query = query.filter(Booking.bookingID == -1)
+        elif search_by == 'first_name':
+            query = query.join(Customer).filter(Customer.first_name.ilike(f'%{search_q}%'))
+        elif search_by == 'last_name':
+            query = query.join(Customer).filter(Customer.last_name.ilike(f'%{search_q}%'))
+        elif search_by == 'email':
+            query = query.join(Customer).filter(Customer.email.ilike(f'%{search_q}%'))
+        elif search_by == 'phone':
+            query = query.join(Customer).filter(Customer.phone.ilike(f'%{search_q}%'))
+        else:
+            query = query.join(Customer).filter(
+                db.or_(
+                    Customer.first_name.ilike(f'%{search_q}%'),
+                    Customer.last_name.ilike(f'%{search_q}%'),
+                    Customer.email.ilike(f'%{search_q}%'),
+                    Customer.phone.ilike(f'%{search_q}%'),
+                )
+            )
+
+    bookings = query.order_by(Booking.date.desc(), Booking.start_time.desc()).all()
+
+    return render_template(
+        'manager_booking_history.html',
+        manager=manager,
+        bookings=bookings,
+        all_services=all_services,
+        all_employees=all_employees,
+        filter_status=filter_status,
+        filter_service=filter_service,
+        filter_from=filter_from,
+        filter_to=filter_to,
+        filter_employee=filter_employee,
+        search_q=search_q,
+        search_by=search_by,
     )
 
 
@@ -945,7 +1134,11 @@ def manager_periods(manager_id: int):
         return redirect(url_for('login'))
     manager = Manager.query.get_or_404(manager_id)
     periods = SchedulingPeriod.query.order_by(SchedulingPeriod.start_date.desc()).all()
-    return render_template("manager_periods_list.html", manager=manager, periods=periods)
+    submission_counts = {
+        sp.periodID: AvailabilityRecord.query.filter_by(periodID=sp.periodID).count()
+        for sp in periods
+    }
+    return render_template("manager_periods_list.html", manager=manager, periods=periods, submission_counts=submission_counts)
 
 
 @app.route("/manager/<int:manager_id>/periods/create", methods=["GET", "POST"])
@@ -1008,6 +1201,25 @@ def manager_edit_period(manager_id: int, period_id: int):
     return render_template("manager_edit_period.html", manager=manager, sp=sp)
 
 
+@app.route("/manager/<int:manager_id>/periods/<int:period_id>/delete", methods=["POST"])
+def manager_delete_period(manager_id: int, period_id: int):
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+    sp = SchedulingPeriod.query.get_or_404(period_id)
+    submission_count = AvailabilityRecord.query.filter_by(periodID=period_id).count()
+    if submission_count > 0:
+        flash(f"Cannot delete — this period has {submission_count} employee submission(s). Close it instead.", "danger")
+        return redirect(url_for('manager_periods', manager_id=manager_id))
+    try:
+        db.session.delete(sp)
+        db.session.commit()
+        flash(f"Period '{sp.label}' deleted.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting period: {str(e)}", "danger")
+    return redirect(url_for('manager_periods', manager_id=manager_id))
+
+
 @app.route("/manager/<int:manager_id>/periods/<int:period_id>/open", methods=["POST"])
 def manager_open_period(manager_id: int, period_id: int):
     if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
@@ -1036,14 +1248,37 @@ def manager_bookings(manager_id: int):
     if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
         return redirect(url_for('login'))
 
-    manager    = Manager.query.get_or_404(manager_id)
-    search_q   = request.args.get('q', '').strip()
-    search_by  = request.args.get('by', 'all')
+    manager         = Manager.query.get_or_404(manager_id)
+    search_q        = request.args.get('q', '').strip()
+    search_by       = request.args.get('by', 'all')
+    filter_status   = request.args.get('status', '').strip()
+    filter_service  = request.args.get('service', '').strip()
+    filter_employee = request.args.get('employee', '').strip()
 
-    query = Booking.query.filter(Booking.is_blocked == False)
+    query = Booking.query.filter(
+        Booking.is_blocked == False,
+        Booking.booking_status.in_(['pending', 'confirmed', 'in_progress', 'assigned', 'on_hold'])
+    )
 
+    # Dropdown filters
+    if filter_status:
+        query = query.filter(Booking.booking_status == filter_status)
+    if filter_service:
+        query = query.filter(Booking.serviceID == int(filter_service))
+    if filter_employee == 'unassigned':
+        query = query.filter(Booking.assigned_employee == None)
+    elif filter_employee:
+        query = query.filter(Booking.assigned_employee == int(filter_employee))
+
+    # Text search filters
     if search_q:
-        if search_by == 'first_name':
+        if search_by == 'booking_id':
+            try:
+                bk_id = int(search_q.lstrip('BK-').lstrip('bk-'))
+                query = query.filter(Booking.bookingID == bk_id)
+            except ValueError:
+                query = query.filter(Booking.bookingID == -1)  # no results
+        elif search_by == 'first_name':
             query = query.join(Customer).filter(Customer.first_name.ilike(f'%{search_q}%'))
         elif search_by == 'last_name':
             query = query.join(Customer).filter(Customer.last_name.ilike(f'%{search_q}%'))
@@ -1051,7 +1286,7 @@ def manager_bookings(manager_id: int):
             query = query.join(Customer).filter(Customer.email.ilike(f'%{search_q}%'))
         elif search_by == 'phone':
             query = query.join(Customer).filter(Customer.phone.ilike(f'%{search_q}%'))
-        else:  # all fields
+        else:
             query = query.join(Customer).filter(
                 db.or_(
                     Customer.first_name.ilike(f'%{search_q}%'),
@@ -1061,10 +1296,10 @@ def manager_bookings(manager_id: int):
                 )
             )
 
-    bookings = query.order_by(Booking.date.desc(), Booking.start_time.desc()).all()
-
-    # Also fetch blocked slots separately so manager can manage them
+    bookings      = query.order_by(Booking.date.desc(), Booking.start_time.desc()).all()
     blocked_slots = Booking.query.filter(Booking.is_blocked == True).order_by(Booking.date.desc()).all()
+    all_services  = Service.query.order_by(Service.service_name).all()
+    all_employees = Employee.query.order_by(Employee.first_name).all()
 
     return render_template(
         'manager_bookings.html',
@@ -1073,6 +1308,11 @@ def manager_bookings(manager_id: int):
         blocked_slots=blocked_slots,
         search_q=search_q,
         search_by=search_by,
+        filter_status=filter_status,
+        filter_service=filter_service,
+        filter_employee=filter_employee,
+        all_services=all_services,
+        all_employees=all_employees,
     )
 
 
@@ -1138,6 +1378,42 @@ def manager_unblock_slot(manager_id: int, booking_id: int):
         flash(f"Error removing closure: {str(e)}", "danger")
 
     return redirect(url_for('manager_closures', manager_id=manager_id))
+
+
+# --- UC6: RESOLVE FLAGGED JOB ----------------------------------------------
+
+@app.route("/manager/<int:manager_id>/bookings/<int:booking_id>/resolve-flag", methods=["GET", "POST"])
+def manager_resolve_flag(manager_id: int, booking_id: int):
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+
+    manager = Manager.query.get_or_404(manager_id)
+    booking = Booking.query.get_or_404(booking_id)
+
+    if booking.booking_status != 'on_hold':
+        flash("This booking is not currently flagged.", "info")
+        return redirect(url_for('manager_modify_booking', manager_id=manager_id, booking_id=booking_id))
+
+    if request.method == 'POST':
+        resolution = request.form.get('resolution')
+        try:
+            if resolution == 'reinstate':
+                booking.booking_status = 'confirmed'
+                booking.is_blocked     = False
+                booking.block_reason   = None
+                db.session.commit()
+                flash("Job reinstated and flag cleared. The employee will see it as confirmed.", "success")
+            elif resolution == 'cancel':
+                booking.booking_status = 'cancelled'
+                booking.is_blocked     = False
+                db.session.commit()
+                flash("Booking cancelled and flag cleared.", "success")
+            return redirect(url_for('manager_bookings', manager_id=manager_id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error resolving flag: {str(e)}", "danger")
+
+    return render_template('manager_resolve_flag.html', manager=manager, booking=booking)
 
 
 @app.route("/manager/<int:manager_id>/bookings/<int:booking_id>/modify", methods=["GET"])

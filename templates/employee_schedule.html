@@ -6,7 +6,8 @@
 {% block content %}
 <div class="container py-5">
 
-  <!-- UC4: Availability Banner -->
+  <!-- UC4: Availability Banner — only shown when there's an open period with no submission yet -->
+  {% if show_availability_banner %}
   <div class="d-flex align-items-center justify-content-between p-3 mb-4 rounded-3"
        style="background: #FEF3C7; border: 1px solid #FCD34D;">
     <div class="d-flex align-items-center gap-3">
@@ -24,6 +25,7 @@
       <i class="bi bi-calendar3 me-1"></i> My Availabilities
     </a>
   </div>
+  {% endif %}
 
   <div class="d-flex align-items-end justify-content-between mb-4">
     <div>
@@ -58,7 +60,7 @@
         {% for booking in entry.bookings %}
         <a class="list-group-item list-group-item-action p-4 bg-white {% if not loop.last %}border-bottom{% endif %}"
            href="{{ url_for('employee_job_details', employee_id=employee.employeeID, booking_id=booking.bookingID) }}"
-           style="{% if booking.booking_status == 'in_progress' %}border-left: 4px solid #F59E0B;{% elif booking.booking_status == 'confirmed' %}border-left: 4px solid #10B981;{% endif %}">
+           style="border-left: 4px solid {% if booking.booking_status == 'in_progress' %}#F59E0B{% elif booking.booking_status == 'confirmed' %}#10B981{% else %}transparent{% endif %};">
           <div class="d-flex align-items-center justify-content-between gap-3">
             <div class="flex-grow-1">
               <div class="d-flex align-items-center gap-2 mb-1">
@@ -118,6 +120,60 @@
         Submit My Availability
       </a>
     </div>
+  {% endif %}
+
+  <!-- FLAGGED JOBS SECTION -->
+  {% if flagged_jobs %}
+  <div class="mt-4">
+    <button class="btn btn-outline-danger fw-bold px-4"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#flagged-jobs-panel"
+            aria-expanded="false">
+      <i class="bi bi-flag-fill me-2"></i>
+      Flagged Jobs
+      <span class="badge bg-danger ms-2">{{ flagged_jobs | length }}</span>
+    </button>
+
+    <div class="collapse mt-3" id="flagged-jobs-panel">
+      <div class="card xpair-card overflow-hidden">
+        {% for b in flagged_jobs %}
+        <div class="p-4 {% if not loop.last %}border-bottom{% endif %}"
+             style="background:#FEF2F2; border-left: 4px solid #EF4444;">
+          <div class="d-flex align-items-center justify-content-between gap-3">
+            <div class="flex-grow-1">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="fw-bold">JOB-{{ b.bookingID }}</span>
+                <span class="badge bg-danger text-white" style="font-size:0.65rem;">
+                  <i class="bi bi-flag-fill me-1"></i>Flagged — Awaiting Manager
+                </span>
+              </div>
+              <div class="text-muted small mb-1">
+                <i class="bi bi-calendar3 me-1"></i>
+                {{ b.date.strftime('%A, %b %d %Y') }} &nbsp;·&nbsp;
+                {{ b.start_time.strftime('%I:%M %p') }} – {{ b.end_time.strftime('%I:%M %p') }}
+              </div>
+              <div class="small">
+                <span class="fw-semibold">{{ b.service.service_name if b.service else '—' }}</span>
+                &nbsp;·&nbsp;
+                <span class="text-muted">{{ (b.customer.first_name ~ ' ' ~ b.customer.last_name) if b.customer else '—' }}</span>
+              </div>
+              {% if b.block_reason %}
+              <div class="small mt-1 fst-italic" style="color:#B91C1C;">
+                <i class="bi bi-chat-left-text me-1"></i>{{ b.block_reason }}
+              </div>
+              {% endif %}
+            </div>
+            <i class="bi bi-lock text-danger flex-shrink-0"></i>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="small text-muted mt-2 px-1">
+        <i class="bi bi-info-circle me-1"></i>These jobs are on hold. The manager will contact you once resolved.
+      </div>
+    </div>
+  </div>
   {% endif %}
 
 </div>

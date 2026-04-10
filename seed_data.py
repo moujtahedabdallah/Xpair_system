@@ -443,7 +443,7 @@ def seed_data():
                 bk(cust1, s0, car1, (2026,4,13,11,0), "pending"),
                 bk(cust3, s2, car3, (2026,4,14,9,0),  "pending", None, "Guest noted a scratch on front bumper."),
 
-                # On-hold (cancelled by customer — tests cancel flow)
+                # Flagged / On Hold — tests manager dashboard alert + Modify Bookings flag UI
                 bk(cust4, s1, car4, (2026,4,7,10,0),  "cancelled"),
             ]
 
@@ -451,19 +451,51 @@ def seed_data():
             for entry in raw_bookings:
                 b_obj, addons = entry
                 db.session.add(b_obj)
-                db.session.flush()  # get bookingID
+                db.session.flush()
 
-                # Generate booking summary for all non-blocked bookings
                 if b_obj.customer and b_obj.service and b_obj.vehicle:
                     b_obj.generate_booking_summary(selected_add_ons=addons if addons else None)
 
                 all_inserted.append(b_obj)
 
             db.session.flush()
-            print(f"✅ {len(all_inserted)} bookings added across 6 months.")
 
-            # ── BLOCKED TIME SLOT (UC6 block_time_slot demo) ─────────────
-            # This is a manager-created block, no customer/service/vehicle
+            # ── FLAGGED JOBS (on_hold) — tests dashboard alert + flag UI ──
+            # Manually create so we can set block_reason and assigned employee
+            flagged1 = Booking(
+                customerID=cust2.customerID, serviceID=s1.serviceID,
+                vehicleID=car2.vehicleID, date=datetime(2026, 4, 10).date(),
+                start_time=datetime(2026, 4, 10, 9, 0),
+                end_time=datetime(2026, 4, 10, 12, 0),
+                booking_status='on_hold',
+                is_blocked=False,
+                assigned_employee=emp1.employeeID,
+                block_reason="Customer was aggressive and refused access to the vehicle.",
+                job_notes="Escalated to manager.",
+                service_address=ADDR.get(cust2.customerID),
+            )
+            db.session.add(flagged1)
+            db.session.flush()
+            flagged1.generate_booking_summary()
+
+            flagged2 = Booking(
+                customerID=cust3.customerID, serviceID=s0.serviceID,
+                vehicleID=car3.vehicleID, date=datetime(2026, 4, 11).date(),
+                start_time=datetime(2026, 4, 11, 13, 0),
+                end_time=datetime(2026, 4, 11, 14, 0),
+                booking_status='on_hold',
+                is_blocked=False,
+                assigned_employee=emp2.employeeID,
+                block_reason="Vehicle not accessible — customer parked in a no-entry zone.",
+                service_address=ADDR.get(cust3.customerID),
+            )
+            db.session.add(flagged2)
+            db.session.flush()
+            flagged2.generate_booking_summary()
+
+            print(f"✅ {len(all_inserted)} bookings + 2 flagged jobs added.")
+
+            # ── CLOSURES (blocked time slots) ────────────────────────────
             manager = Manager.query.filter_by(email="johnsnow@xpair.com").first()
             if manager:
                 manager.block_time_slot(
@@ -476,7 +508,12 @@ def seed_data():
                     start_time=datetime(2026, 4, 18, 9, 0),
                     end_time=datetime(2026, 4, 18, 17, 0),
                 )
-                print("2 blocked time slots added.")
+                manager.block_time_slot(
+                    block_reason="Public holiday — shop closed.",
+                    start_time=datetime(2026, 5, 18, 8, 0),
+                    end_time=datetime(2026, 5, 18, 17, 0),
+                )
+                print("3 closures (blocked slots) added.")
 
         db.session.commit()
 
@@ -496,13 +533,14 @@ def seed_data():
         print()
         print("Features covered:")
         print("  ✅ UC1  Auth — 2 managers, 3 employees, 4 customers seeded")
-        print("  ✅ UC3  Booking — 6 months history, all statuses, add-ons, summaries")
+        print("  ✅ UC3  Booking — 6 months history, all statuses, add-ons, summaries, service addresses")
         print("  ✅ UC4  Availability submission — period 2 has pending records ready")
         print("  ✅ UC5  Employee jobs — in_progress/confirmed/completed assigned to each emp")
+        print("  ✅ UC5  Flagged jobs — 2 on_hold jobs with reasons trigger dashboard alert")
         print("  ✅ UC6  Manager modify — pending bookings to assign/reschedule/cancel")
-        print("  ✅ UC6  Block slot — 2 blocked slots seeded")
+        print("  ✅ UC6  Closures — 3 blocked slots seeded (edit/remove testable)")
         print("  ✅ UC7  Availability review — approved, changes_requested, pending all present")
-        print("  ✅ UC8  Dashboard — dense multi-month history for all chart/KPI views")
+        print("  ✅ UC8  Dashboard — dense multi-month history + flagged jobs alert")
 
 
 if __name__ == "__main__":
