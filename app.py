@@ -515,7 +515,7 @@ def my_bookings():
     return render_template('my_bookings.html', customer=customer, bookings=bookings)
 
 
-# --- UC6 ROUTES (Employee Availability Submission) ----------------------------------------------
+# --- UC4 ROUTES (Employee Availability Submission) ----------------------------------------------
 
 def build_period_dict(sp, employee_id):
     from datetime import timedelta
