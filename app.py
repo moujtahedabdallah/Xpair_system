@@ -157,20 +157,21 @@ def booking_page():
             customer.vehicle_id = new_vehicle.vehicleID
             db.session.commit()
 
-        new_booking = Booking(
-            customerID=customer.customerID, serviceID=service_id,
-            vehicleID=new_vehicle.vehicleID, date=start_dt.date(),
-            start_time=start_dt, end_time=end_dt,
-            booking_status='pending', job_notes=instructions,
-            service_address=service_address
-        )
-
         try:
-            db.session.add(new_booking)
-            db.session.flush()
+            new_booking = customer.book_service(
+                serviceID=service_id,
+                vehicleID=new_vehicle.vehicleID,
+                startTime=start_dt
+            )
+            new_booking.service_address = service_address
+            new_booking.job_notes = instructions
             new_booking.generate_booking_summary(selected_add_ons=addons_list)
             db.session.commit()
             return redirect(url_for('booking_success', booking_id=new_booking.bookingID))
+        except ValueError as e:
+            db.session.rollback()
+            flash(str(e), "danger")
+            return redirect(url_for('booking_page'))
         except Exception as e:
             db.session.rollback()
             flash(f"Database Error: {str(e)}", "danger")
@@ -192,8 +193,15 @@ def manage_booking(booking_id):
 @app.route('/cancel/<int:booking_id>', methods=['POST'])
 def cancel_booking(booking_id):
     booking = Booking.query.get_or_404(booking_id)
-    booking.cancel()
-    flash("Your booking has been successfully cancelled.", "info")
+    try:
+        if session.get('user_role') == 'customer':
+            customer = db.session.get(Customer, session['user_id'])
+            customer.cancel_booking(booking.bookingID)
+        else:
+            booking.cancel()
+        flash("Your booking has been successfully cancelled.", "info")
+    except ValueError as e:
+        flash(str(e), "danger")
     return redirect(url_for('home'))
 
 @app.route('/reschedule/<int:booking_id>', methods=['GET', 'POST'])
@@ -287,11 +295,10 @@ def employee_add_job_notes(employee_id: int, booking_id: int):
 
     notes = (request.form.get("job_notes") or "").strip()
     try:
-        booking.validate_notes(notes)
-        booking.job_notes = notes
-        db.session.commit()
+        employee = Employee.query.get_or_404(employee_id)
+        employee.add_job_notes(booking.bookingID, notes)
         flash("Notes saved.", "success")
-    except Exception as e:
+    except (ValueError, PermissionError) as e:
         db.session.rollback()
         flash(str(e), "danger")
 
@@ -514,11 +521,7 @@ def manager_request_changes(manager_id: int, availability_id: int):
         return redirect(url_for("manager_availability_details", manager_id=manager_id, availability_id=availability_id))
 
     try:
-        submission.status       = "changes_requested"
-        submission.manager_notes = notes
-        submission.managerID    = manager.managerID
-        submission.reviewed_at  = datetime.now()
-        db.session.commit()
+        manager.request_changes(availability_id, notes)
         flash("Changes requested from employee.", "success")
     except Exception as e:
         db.session.rollback()
@@ -1497,8 +1500,13 @@ def manager_reschedule_booking(manager_id: int, booking_id: int):
         try:
             new_start = datetime.strptime(f"{new_date_str} {new_time_str}", "%Y-%m-%d %I:%M %p")
             new_end   = new_start + timedelta(minutes=booking.service.service_duration)
-            booking.reschedule(new_start, new_end)
+            
+            # Calling the Manager class method
+            manager.force_change_appointment_time(booking_id, new_start, new_end)
+            
+            # Correct strftime string (No more ellipsis!)
             modified_at = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+            
             return render_template(
                 'manager_booking_success.html',
                 manager=manager,
@@ -1585,10 +1593,9 @@ def manager_cancel_booking(manager_id: int, booking_id: int):
     if request.method == 'POST':
         reason = request.form.get('reason', '').strip()
         try:
-            booking.booking_status = 'cancelled'
             if reason:
                 booking.block_reason = reason
-            db.session.commit()
+            manager.process_cancellation(booking_id)
             modified_at = datetime.now().strftime("%B %d, %Y at %I:%M %p")
             return render_template(
                 'manager_booking_success.html',

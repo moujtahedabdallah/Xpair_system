@@ -85,6 +85,7 @@ class Customer(Person):
 
     def book_service(self, serviceID, vehicleID, startTime):
         from .booking import Booking 
+        from .service import Service 
         from .notification_service import NotificationService # Added
         
         service = db.session.get(Service, serviceID)
