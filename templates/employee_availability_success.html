@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Availability Submitted{% endblock %}
+
+<!-- UC6: AVAILABILITY SUBMISSION SUCCESS -->
+
+{% block content %}
+<div class="container py-5 d-flex justify-content-center">
+  <div style="max-width: 560px; width:100%;">
+
+    <!-- Success icon -->
+    <div class="text-center mb-4">
+      <div style="width:72px; height:72px; border-radius:50%; background:#16A34A; display:inline-flex; align-items:center; justify-content:center;">
+        <i class="bi bi-check-lg text-white" style="font-size:2rem;"></i>
+      </div>
+    </div>
+
+    <h2 class="fw-bold text-center mb-2">Availability Submitted Successfully!</h2>
+    <p class="text-center text-muted mb-4">
+      Your availability for <strong>{{ period.label }}</strong> has been submitted for manager review.
+    </p>
+
+    <!-- Submission details -->
+    <div class="card xpair-card p-4 mb-4">
+      <h6 class="fw-bold mb-3">Submission Details</h6>
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted small">Scheduling Period</span>
+        <span class="fw-bold small">{{ period.label }}</span>
+      </div>
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted small">Submitted On</span>
+        <span class="fw-bold small">{{ submitted_at }}</span>
+      </div>
+      <div class="d-flex justify-content-between py-2 border-bottom align-items-center">
+        <span class="text-muted small">Status</span>
+        <span class="badge rounded-pill px-3 py-2" style="background:#FEF3C7; color:#92400E; font-size:0.75rem;">
+          Pending Manager Review
+        </span>
+      </div>
+      <div class="d-flex justify-content-between py-2">
+        <span class="text-muted small">Submission ID</span>
+        <span class="fw-bold small">AV-{{ submission_ids | join(', AV-') }}</span>
+      </div>
+    </div>
+
+    <!-- What happens next -->
+    <div class="p-4 mb-4 rounded-3" style="background:#EFF6FF; border:1px solid #BFDBFE;">
+      <div class="d-flex gap-2 mb-2">
+        <i class="bi bi-info-circle" style="color:#2563EB;"></i>
+        <span class="fw-bold small" style="color:#1E40AF;">What Happens Next?</span>
+      </div>
+      <ul class="mb-0 small ps-3" style="color:#1E40AF;">
+        <li>Your manager will review your submitted availability</li>
+        <li>You will receive a notification when the review is complete</li>
+        <li>If changes are requested, you can update your availability</li>
+        <li>Once approved, your availability will be used for scheduling</li>
+      </ul>
+    </div>
+
+    <!-- CTA -->
+    <div class="text-center mb-3">
+      <a href="{{ url_for('employee_jobs', employee_id=employee.employeeID) }}"
+         class="btn btn-xpair fw-bold px-5 py-3 rounded-pill">
+        Return to Dashboard
+      </a>
+    </div>
+    <p class="text-center text-muted small">
+      Need to make changes? Contact your manager or wait for the review notification.
+    </p>
+
+  </div>
+</div>
+{% endblock %}

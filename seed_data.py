@@ -4,6 +4,7 @@ from src.vehicle import Vehicle
 from src.service import Service
 from src.booking import Booking
 from src.availability_record import AvailabilityRecord
+from src.scheduling_period import SchedulingPeriod
 from src.customer import Customer
 from src.employee import Employee
 from src.manager import Manager
@@ -38,7 +39,38 @@ def seed_data():
             print("Manager added.")
 
         # ----------------------------------------------------------------
-        # 2. SERVICE CATALOG
+        # 2. SCHEDULING PERIODS (UC6)
+        # ----------------------------------------------------------------
+        if not SchedulingPeriod.query.first():
+            from datetime import date
+            manager = Manager.query.filter_by(email="johnsnow@xpair.com").first()
+            periods = [
+                SchedulingPeriod(
+                    label="March 31 - April 13, 2026",
+                    start_date=date(2026, 3, 31), end_date=date(2026, 4, 13),
+                    due_date=date(2026, 3, 28), status="closed",
+                    created_by=manager.managerID if manager else None,
+                ),
+                SchedulingPeriod(
+                    label="April 14 - 27, 2026",
+                    start_date=date(2026, 4, 14), end_date=date(2026, 4, 27),
+                    due_date=date(2026, 4, 9), status="open",
+                    created_by=manager.managerID if manager else None,
+                ),
+                SchedulingPeriod(
+                    label="April 28 - May 11, 2026",
+                    start_date=date(2026, 4, 28), end_date=date(2026, 5, 11),
+                    due_date=date(2026, 4, 23), status="upcoming",
+                    created_by=manager.managerID if manager else None,
+                ),
+            ]
+            for p in periods:
+                db.session.add(p)
+            db.session.flush()
+            print("Scheduling periods seeded.")
+
+        # ----------------------------------------------------------------
+        # 3. SERVICE CATALOG
         # ----------------------------------------------------------------
         if not Service.query.first():
             for name in Service.SERVICE_DATA.keys():
@@ -118,21 +150,24 @@ def seed_data():
             db.session.flush()
             print("Employee added.")
 
-            # Availability records
+            # Availability records for UC6
+            # periodID=1 → March 31 - April 13 (Submitted/approved)
+            # periodID=2 → April 14 - 27 (Open — employee will submit via UC6)
             records = [
+                # Period 1 — already submitted and approved (shows as Submitted on list)
                 AvailabilityRecord(employeeID=test_emp.employeeID, periodID=1,
-                    day="Monday", start_time=datetime(2026, 4, 7, 9, 0),
-                    end_time=datetime(2026, 4, 7, 17, 0), status="pending"),
+                    day="Tuesday", start_time=datetime(2026, 4, 1, 9, 0),
+                    end_time=datetime(2026, 4, 1, 17, 0), status="approved"),
                 AvailabilityRecord(employeeID=test_emp.employeeID, periodID=1,
-                    day="Wednesday", start_time=datetime(2026, 4, 9, 9, 0),
-                    end_time=datetime(2026, 4, 9, 17, 0), status="pending"),
+                    day="Thursday", start_time=datetime(2026, 4, 3, 9, 0),
+                    end_time=datetime(2026, 4, 3, 17, 0), status="approved"),
                 AvailabilityRecord(employeeID=test_emp.employeeID, periodID=1,
-                    day="Friday", start_time=datetime(2026, 4, 11, 12, 0),
-                    end_time=datetime(2026, 4, 11, 18, 0), status="approved"),
+                    day="Saturday", start_time=datetime(2026, 4, 5, 10, 0),
+                    end_time=datetime(2026, 4, 5, 16, 0), status="approved"),
             ]
             for r in records:
                 db.session.add(r)
-            print("Availability records added.")
+            print("Availability records added (period 1 — approved).")
         else:
             test_emp = Employee.query.filter_by(email="test_employee@xpair.com").first()
 

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Scheduling Periods{% endblock %}
+
+<!-- MANAGER: SCHEDULING PERIODS LIST -->
+
+{% block content %}
+<div class="container py-5">
+
+    <div class="d-flex align-items-end justify-content-between mb-4 flex-wrap gap-3">
+        <div>
+            <h2 class="fw-bold mb-1">Scheduling Periods</h2>
+            <p class="text-muted mb-0">Manage employee availability submission windows</p>
+        </div>
+        <a href="{{ url_for('manager_create_period', manager_id=manager.managerID) }}"
+           class="btn btn-xpair fw-bold px-4 py-2 rounded-pill shadow-sm">
+            <i class="bi bi-plus-lg me-1"></i> Create Period
+        </a>
+    </div>
+
+    {% if periods %}
+    <div class="card xpair-card p-0 overflow-hidden">
+        {% for sp in periods %}
+        <div class="p-4 {% if not loop.last %}border-bottom{% endif %} bg-white">
+            <div class="row align-items-center g-3">
+                <div class="col-md-5">
+                    <div class="fw-bold mb-1">{{ sp.label }}</div>
+                    <div class="text-muted small">
+                        {{ sp.start_date.strftime('%b %d') }} – {{ sp.end_date.strftime('%b %d, %Y') }}
+                        &nbsp;·&nbsp; Due: {{ sp.due_date.strftime('%b %d, %Y') }}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <span class="badge rounded-pill px-3 py-2
+                        {% if sp.status == 'open' %} bg-success-subtle text-success
+                        {% elif sp.status == 'upcoming' %} bg-primary-subtle text-primary
+                        {% else %} bg-secondary-subtle text-secondary
+                        {% endif %}">
+                        {{ sp.status | capitalize }}
+                    </span>
+                </div>
+                <div class="col-md-4 d-flex gap-2 justify-content-md-end">
+                    {% if sp.status == 'open' %}
+                    <form method="POST"
+                          action="{{ url_for('manager_close_period', manager_id=manager.managerID, period_id=sp.periodID) }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger fw-bold px-3"
+                                onclick="return confirm('Close this period? Employees will no longer be able to submit.')">
+                            <i class="bi bi-lock me-1"></i> Close
+                        </button>
+                    </form>
+                    {% endif %}
+                    <a href="{{ url_for('manager_availability', manager_id=manager.managerID) }}"
+                       class="btn btn-sm btn-outline-dark fw-bold px-3">
+                        <i class="bi bi-people me-1"></i> View Submissions
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="card xpair-card p-5 text-center">
+        <div class="mb-3">
+            <div style="width:64px; height:64px; border-radius:50%; background:#F3F4F6; display:inline-flex; align-items:center; justify-content:center;">
+                <i class="bi bi-calendar-plus text-muted" style="font-size:1.6rem;"></i>
+            </div>
+        </div>
+        <h5 class="fw-bold mb-2">No scheduling periods yet</h5>
+        <p class="text-muted mb-4">Create your first scheduling period so employees can submit their availability.</p>
+        <a href="{{ url_for('manager_create_period', manager_id=manager.managerID) }}"
+           class="btn btn-xpair fw-bold px-5 py-2 rounded-pill mx-auto" style="width:fit-content;">
+            Create First Period
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

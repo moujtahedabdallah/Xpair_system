@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Review Availability{% endblock %}
+
+<!-- UC6: REVIEW AVAILABILITY SCREEN -->
+
+{% block content %}
+<div class="container py-5" style="max-width: 780px;">
+
+  <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
+     href="{{ url_for('employee_availability_enter', employee_id=employee.employeeID, period_id=period.id) }}">
+    <i class="bi bi-arrow-left me-2"></i> Back
+  </a>
+
+  <h2 class="fw-bold mb-1">Review Your Availability</h2>
+  <p class="text-muted mb-4">Please review your submitted availability before confirming</p>
+
+  <!-- Summary card -->
+  <div class="card xpair-card p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+      <div>
+        <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Scheduling Period</div>
+        <div class="fw-bold fs-5">{{ period.label }}</div>
+      </div>
+      <div class="text-end">
+        <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Total Hours Available</div>
+        <div class="fw-bold fs-2" style="color: var(--xpair-red);">{{ summary.total_hours }}</div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-4">
+        <div class="p-3 rounded-2 text-center" style="background:#EFF6FF;">
+          <div class="small text-muted mb-1">Days Available</div>
+          <div class="fw-bold fs-4" style="color:#1D4ED8;">{{ summary.days_count }}</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="p-3 rounded-2 text-center" style="background:#F0FDF4;">
+          <div class="small text-muted mb-1">Total Slots</div>
+          <div class="fw-bold fs-4" style="color:#15803D;">{{ summary.slot_count }}</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="p-3 rounded-2 text-center" style="background:#FFFBEB;">
+          <div class="small text-muted mb-1">Avg Hours/Day</div>
+          <div class="fw-bold fs-4" style="color:#D97706;">{{ summary.avg_hours }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h6 class="fw-bold mb-0">Availability Details</h6>
+      <a href="{{ url_for('employee_availability_enter', employee_id=employee.employeeID, period_id=period.id) }}"
+         class="text-muted small text-decoration-none">
+        <i class="bi bi-pencil me-1"></i> Edit
+      </a>
+    </div>
+
+    {% for slot in slots %}
+    <div class="card p-3 mb-3" style="border: 1px solid #E5E7EB; border-radius:10px;">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="fw-bold">{{ slot.date_label }}</div>
+        <span class="badge" style="background:#D1FAE5; color:#065F46; border-radius:20px; padding:4px 12px; font-size:0.72rem;">Available</span>
+      </div>
+      <div class="text-muted small mb-1">1 time slot</div>
+      <div class="d-flex align-items-center gap-2 small">
+        <i class="bi bi-clock" style="color:#3B82F6;"></i>
+        <span class="fw-bold">{{ slot.start_label }} - {{ slot.end_label }}</span>
+        <span class="text-muted">({{ slot.hours }} hours)</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Important info box -->
+  <div class="p-4 mb-4 rounded-3" style="background:#FFFBEB; border:1px solid #FCD34D;">
+    <div class="d-flex gap-2 mb-2">
+      <i class="bi bi-exclamation-triangle" style="color:#D97706;"></i>
+      <span class="fw-bold small" style="color:#92400E;">Important Information</span>
+    </div>
+    <ul class="mb-0 small ps-3" style="color:#92400E;">
+      <li>Your availability will be submitted with status "Pending Manager Review"</li>
+      <li>You will be notified once your manager reviews your submission</li>
+      <li>After submission, you cannot edit until approved or changes are requested</li>
+    </ul>
+  </div>
+
+  <!-- Actions -->
+  <div class="d-flex justify-content-between align-items-center">
+    <a href="{{ url_for('employee_availability_enter', employee_id=employee.employeeID, period_id=period.id) }}"
+       class="text-muted text-decoration-none small">
+      <i class="bi bi-arrow-left me-1"></i> Back to Calendar
+    </a>
+    <form method="POST" action="{{ url_for('employee_availability_submit', employee_id=employee.employeeID, period_id=period.id) }}">
+      <button type="submit" class="btn btn-xpair fw-bold px-5 py-2">
+        <i class="bi bi-check2-circle me-1"></i> Submit Availability
+      </button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

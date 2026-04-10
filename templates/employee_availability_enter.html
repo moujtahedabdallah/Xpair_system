@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Enter Availability{% endblock %}
+
+<!-- UC6: ENTER AVAILABILITY SCREEN -->
+
+{% block content %}
+<div class="container py-5">
+
+  <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
+     href="{{ url_for('employee_availabilities', employee_id=employee.employeeID) }}">
+    <i class="bi bi-arrow-left me-2"></i> Back to Periods
+  </a>
+
+  <h2 class="fw-bold mb-1">Enter Your Availability</h2>
+  <p class="text-muted mb-4">Period: {{ period.label }}</p>
+
+  <div class="row g-4">
+
+    <!-- LEFT: Add time slot form -->
+    <div class="col-lg-4">
+      <div class="card xpair-card p-4 sticky-top" style="top: 100px;">
+        <h6 class="fw-bold mb-3">Add Available Time</h6>
+
+        <form method="POST" action="{{ url_for('employee_availability_enter', employee_id=employee.employeeID, period_id=period.id) }}">
+          <div class="mb-3">
+            <label class="form-label fw-bold small">Select Date</label>
+            <select name="date" class="form-select bg-light border-0" required>
+              <option value="">Choose a date...</option>
+              {% for d in period.dates %}
+              <option value="{{ d.value }}">{{ d.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold small">Start Time</label>
+            <select name="start_time" class="form-select bg-light border-0">
+              {% for t in time_options %}
+              <option value="{{ t.value }}" {% if t.value == '09:00' %}selected{% endif %}>{{ t.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold small">End Time</label>
+            <select name="end_time" class="form-select bg-light border-0">
+              {% for t in time_options %}
+              <option value="{{ t.value }}" {% if t.value == '17:00' %}selected{% endif %}>{{ t.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <button type="submit" name="action" value="add"
+                  class="btn btn-xpair w-100 fw-bold py-2">
+            <i class="bi bi-plus-lg me-1"></i> Add Time Slot
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- RIGHT: Calendar + slots list -->
+    <div class="col-lg-8">
+
+      <!-- Calendar View -->
+      <div class="card xpair-card p-4 mb-4">
+        <h6 class="fw-bold mb-3">Calendar View</h6>
+        <div class="row g-2">
+          {% for week in period.calendar_weeks %}
+          {% for day in week %}
+          <div class="col" style="min-width: 60px; max-width: 80px;">
+            <div class="text-center p-2 rounded-2 {% if day.has_slot %}border fw-bold{% endif %}"
+                 style="{% if day.has_slot %}border-color: #10B981 !important; background: #F0FDF4;{% elif day.is_period %}background: #F9FAFB; border: 1px solid #E5E7EB;{% else %}opacity:0.3;{% endif %}">
+              <div class="small text-muted" style="font-size:0.65rem;">{{ day.weekday }}</div>
+              <div class="fw-bold small">{{ day.day_num }}</div>
+              {% if day.has_slot %}
+              <div style="width:6px; height:6px; border-radius:50%; background:#10B981; margin:2px auto 0;"></div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Added slots -->
+      <div class="card xpair-card p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold mb-0">Your Available Times</h6>
+          {% if slots %}
+          <span class="badge rounded-pill px-3" style="background:#D1FAE5; color:#065F46;">
+            {{ slots|length }} slot{{ 's' if slots|length != 1 else '' }} added
+          </span>
+          {% endif %}
+        </div>
+
+        {% if slots %}
+        {% for slot in slots %}
+        <div class="d-flex align-items-center justify-content-between p-3 mb-2 rounded-2"
+             style="background:#F9FAFB; border: 1px solid #E5E7EB;">
+          <div class="d-flex align-items-center gap-3">
+            <div style="width:32px; height:32px; border-radius:50%; background:#D1FAE5; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <i class="bi bi-clock" style="color:#065F46; font-size:0.8rem;"></i>
+            </div>
+            <div>
+              <div class="fw-bold small">{{ slot.date_label }}</div>
+              <div class="text-muted small">{{ slot.start_label }} - {{ slot.end_label }}</div>
+            </div>
+          </div>
+          <form method="POST" action="{{ url_for('employee_availability_enter', employee_id=employee.employeeID, period_id=period.id) }}">
+            <input type="hidden" name="slot_index" value="{{ loop.index0 }}">
+            <button type="submit" name="action" value="remove"
+                    class="btn btn-sm" style="color: var(--xpair-red); background:none; border:none;">
+              <i class="bi bi-trash3"></i>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+
+        <div class="d-flex justify-content-between align-items-center mt-4">
+          <a href="{{ url_for('employee_availabilities', employee_id=employee.employeeID) }}"
+             class="btn btn-outline-secondary fw-bold px-4">Cancel</a>
+          <a href="{{ url_for('employee_availability_review', employee_id=employee.employeeID, period_id=period.id) }}"
+             class="btn btn-xpair fw-bold px-4">
+            Review &amp; Submit <i class="bi bi-arrow-right ms-1"></i>
+          </a>
+        </div>
+
+        {% else %}
+        <div class="text-center py-4 text-muted">
+          <i class="bi bi-calendar-plus mb-2" style="font-size:1.5rem;"></i>
+          <p class="small mb-0">No time slots added yet. Use the form on the left to add your availability.</p>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

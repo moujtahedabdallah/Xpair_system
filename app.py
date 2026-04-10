@@ -14,6 +14,7 @@ from src.availability_record import AvailabilityRecord
 from src.customer import Customer
 from src.employee import Employee
 from src.manager import Manager
+from src.scheduling_period import SchedulingPeriod
 
 # Load environment variables (like email passwords) securely from .env
 load_dotenv()
@@ -512,6 +513,328 @@ def my_bookings():
         .all()
     )
     return render_template('my_bookings.html', customer=customer, bookings=bookings)
+
+
+# --- UC6 ROUTES (Employee Availability Submission) ----------------------------------------------
+
+def build_period_dict(sp, employee_id):
+    from datetime import timedelta
+    from src.availability_record import AvailabilityRecord
+
+    # Determine display status for this employee
+    existing = AvailabilityRecord.query.filter_by(
+        periodID=sp.periodID, employeeID=employee_id
+    ).first()
+
+    if existing:
+        display_status  = 'submitted'
+        submitted_on    = existing.created_at.strftime('%b %d, %Y') if existing.created_at else '—'
+        review_status   = existing.status.replace('_', ' ').title()
+    else:
+        display_status  = sp.status
+        submitted_on    = None
+        review_status   = None
+
+    p = {
+        'id':           sp.periodID,
+        'label':        sp.label,
+        'period_range': f"{sp.start_date.strftime('%b %d')} - {sp.end_date.strftime('%b %d, %Y')}",
+        'due_date':     sp.due_date.strftime('%b %d, %Y'),
+        'start':        sp.start_date,
+        'end':          sp.end_date,
+        'status':       display_status,
+        'submitted_on': submitted_on,
+        'review_status':review_status,
+    }
+
+    # Build date list for dropdowns
+    dates   = []
+    current = sp.start_date
+    while current <= sp.end_date:
+        dates.append({'value': current.strftime('%Y-%m-%d'), 'label': current.strftime('%a, %b %d')})
+        current += timedelta(days=1)
+    p['dates'] = dates
+
+    # Build calendar weeks
+    start_monday = sp.start_date - timedelta(days=sp.start_date.weekday())
+    end_sunday   = sp.end_date + timedelta(days=(6 - sp.end_date.weekday()))
+    calendar_weeks, week = [], []
+    current = start_monday
+    while current <= end_sunday:
+        week.append({
+            'weekday':   current.strftime('%a'),
+            'day_num':   current.day,
+            'value':     current.strftime('%Y-%m-%d'),
+            'is_period': sp.start_date <= current <= sp.end_date,
+            'has_slot':  False,
+        })
+        if len(week) == 7:
+            calendar_weeks.append(week)
+            week = []
+        current += timedelta(days=1)
+    if week:
+        calendar_weeks.append(week)
+    p['calendar_weeks'] = calendar_weeks
+
+    return p
+
+
+def get_time_options():
+    options = []
+    from datetime import datetime, timedelta
+    t = datetime(2000, 1, 1, 6, 0)
+    while t.hour < 22:
+        options.append({'value': t.strftime('%H:%M'), 'label': t.strftime('%I:%M %p')})
+        t += timedelta(minutes=30)
+    return options
+
+
+@app.route("/employee/<int:employee_id>/availabilities", methods=["GET"])
+def employee_availabilities(employee_id: int):
+    employee = Employee.query.get_or_404(employee_id)
+    sps      = SchedulingPeriod.query.order_by(SchedulingPeriod.start_date.asc()).all()
+    periods  = [build_period_dict(sp, employee_id) for sp in sps]
+    return render_template("employee_availabilities.html", employee=employee, periods=periods)
+
+
+@app.route("/employee/<int:employee_id>/availabilities/<int:period_id>/enter", methods=["GET", "POST"])
+def employee_availability_enter(employee_id: int, period_id: int):
+    from datetime import datetime
+    employee = Employee.query.get_or_404(employee_id)
+    sp       = SchedulingPeriod.query.get_or_404(period_id)
+    period   = build_period_dict(sp, employee_id)
+    if not sp.is_open():
+        flash("This scheduling period is not open for submission.", "danger")
+        return redirect(url_for("employee_availabilities", employee_id=employee_id))
+
+    # Use session to store slots temporarily
+    session_key = f"avail_slots_{employee_id}_{period_id}"
+    slots = session.get(session_key, [])
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "add":
+            date_val   = request.form.get("date", "").strip()
+            start_val  = request.form.get("start_time", "").strip()
+            end_val    = request.form.get("end_time", "").strip()
+
+            if date_val and start_val and end_val:
+                # Validate end > start
+                start_dt = datetime.strptime(f"{date_val} {start_val}", "%Y-%m-%d %H:%M")
+                end_dt   = datetime.strptime(f"{date_val} {end_val}",   "%Y-%m-%d %H:%M")
+                if end_dt <= start_dt:
+                    flash("End time must be after start time.", "danger")
+                else:
+                    # Avoid duplicate date entries
+                    if not any(s["date"] == date_val for s in slots):
+                        slots.append({
+                            "date":       date_val,
+                            "start_time": start_val,
+                            "end_time":   end_val,
+                        })
+                        session[session_key] = slots
+                    else:
+                        flash("You already added a slot for that date.", "danger")
+
+        elif action == "remove":
+            idx = int(request.form.get("slot_index", -1))
+            if 0 <= idx < len(slots):
+                slots.pop(idx)
+                session[session_key] = slots
+
+        return redirect(url_for("employee_availability_enter",
+                                employee_id=employee_id, period_id=period_id))
+
+    # Mark calendar days that have slots
+    slot_dates = {s["date"] for s in slots}
+    for week in period["calendar_weeks"]:
+        for day in week:
+            day["has_slot"] = day["value"] in slot_dates
+
+    # Format slots for display
+    from datetime import datetime
+    display_slots = []
+    for s in slots:
+        start_dt = datetime.strptime(f"{s['date']} {s['start_time']}", "%Y-%m-%d %H:%M")
+        end_dt   = datetime.strptime(f"{s['date']} {s['end_time']}",   "%Y-%m-%d %H:%M")
+        display_slots.append({
+            "date_label":  start_dt.strftime("%a, %b %d"),
+            "start_label": start_dt.strftime("%I:%M %p"),
+            "end_label":   end_dt.strftime("%I:%M %p"),
+        })
+
+    return render_template(
+        "employee_availability_enter.html",
+        employee=employee,
+        period=period,
+        slots=display_slots,
+        time_options=get_time_options(),
+    )
+
+
+@app.route("/employee/<int:employee_id>/availabilities/<int:period_id>/review", methods=["GET"])
+def employee_availability_review(employee_id: int, period_id: int):
+    from datetime import datetime
+    employee = Employee.query.get_or_404(employee_id)
+    sp       = SchedulingPeriod.query.get_or_404(period_id)
+    period   = build_period_dict(sp, employee_id)
+
+    session_key = f"avail_slots_{employee_id}_{period_id}"
+    slots_raw   = session.get(session_key, [])
+
+    if not slots_raw:
+        flash("Please add at least one time slot before reviewing.", "danger")
+        return redirect(url_for("employee_availability_enter",
+                                employee_id=employee_id, period_id=period_id))
+
+    # Build display slots with hours
+    display_slots = []
+    total_minutes = 0
+    for s in slots_raw:
+        start_dt = datetime.strptime(f"{s['date']} {s['start_time']}", "%Y-%m-%d %H:%M")
+        end_dt   = datetime.strptime(f"{s['date']} {s['end_time']}",   "%Y-%m-%d %H:%M")
+        mins     = int((end_dt - start_dt).total_seconds() / 60)
+        total_minutes += mins
+        display_slots.append({
+            "date_label":  start_dt.strftime("%a, %B %d, %Y"),
+            "start_label": start_dt.strftime("%H:%M"),
+            "end_label":   end_dt.strftime("%H:%M"),
+            "hours":       round(mins / 60, 1),
+        })
+
+    total_hours = round(total_minutes / 60, 1)
+    avg_hours   = round(total_hours / len(display_slots), 1) if display_slots else 0
+
+    summary = {
+        "total_hours": total_hours,
+        "days_count":  len(display_slots),
+        "slot_count":  len(display_slots),
+        "avg_hours":   avg_hours,
+    }
+
+    return render_template(
+        "employee_availability_review.html",
+        employee=employee,
+        period=period,
+        slots=display_slots,
+        summary=summary,
+    )
+
+
+@app.route("/employee/<int:employee_id>/availabilities/<int:period_id>/submit", methods=["POST"])
+def employee_availability_submit(employee_id: int, period_id: int):
+    from datetime import datetime
+    from src.availability_record import AvailabilityRecord
+
+    employee    = Employee.query.get_or_404(employee_id)
+    sp          = SchedulingPeriod.query.get_or_404(period_id)
+    period      = build_period_dict(sp, employee_id)
+    session_key = f"avail_slots_{employee_id}_{period_id}"
+    slots_raw   = session.get(session_key, [])
+
+    if not slots_raw:
+        flash("No availability slots to submit.", "danger")
+        return redirect(url_for("employee_availability_enter",
+                                employee_id=employee_id, period_id=period_id))
+
+    submission_ids = []
+    try:
+        # Remove any existing records for this period/employee before resubmitting
+        AvailabilityRecord.query.filter_by(
+            employeeID=employee_id, periodID=period_id
+        ).delete()
+
+        for s in slots_raw:
+            start_dt = datetime.strptime(f"{s['date']} {s['start_time']}", "%Y-%m-%d %H:%M")
+            end_dt   = datetime.strptime(f"{s['date']} {s['end_time']}",   "%Y-%m-%d %H:%M")
+            record   = AvailabilityRecord(
+                employeeID=employee_id,
+                periodID=period_id,
+                day=start_dt.strftime("%A"),
+                start_time=start_dt,
+                end_time=end_dt,
+                status="pending",
+            )
+            db.session.add(record)
+            db.session.flush()
+            submission_ids.append(record.availabilityID)
+
+        db.session.commit()
+
+        # Clear session slots
+        session.pop(session_key, None)
+
+        submitted_at = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+
+        return render_template(
+            "employee_availability_success.html",
+            employee=employee,
+            period=period,
+            submitted_at=submitted_at,
+            submission_ids=submission_ids,
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Submission failed: {str(e)}", "danger")
+        return redirect(url_for("employee_availability_review",
+                                employee_id=employee_id, period_id=period_id))
+
+
+# --- MANAGER: SCHEDULING PERIOD ROUTES ----------------------------------------------
+
+@app.route("/manager/<int:manager_id>/periods", methods=["GET"])
+def manager_periods(manager_id: int):
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+    manager = Manager.query.get_or_404(manager_id)
+    periods = SchedulingPeriod.query.order_by(SchedulingPeriod.start_date.desc()).all()
+    return render_template("manager_periods_list.html", manager=manager, periods=periods)
+
+
+@app.route("/manager/<int:manager_id>/periods/create", methods=["GET", "POST"])
+def manager_create_period(manager_id: int):
+    from datetime import datetime
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+    manager = Manager.query.get_or_404(manager_id)
+
+    if request.method == "POST":
+        label      = request.form.get("label", "").strip()
+        start_date = request.form.get("start_date", "").strip()
+        end_date   = request.form.get("end_date", "").strip()
+        due_date   = request.form.get("due_date", "").strip()
+        status     = request.form.get("status", "upcoming").strip()
+
+        try:
+            sp = SchedulingPeriod(
+                label      = label,
+                start_date = datetime.strptime(start_date, "%Y-%m-%d").date(),
+                end_date   = datetime.strptime(end_date,   "%Y-%m-%d").date(),
+                due_date   = datetime.strptime(due_date,   "%Y-%m-%d").date(),
+                status     = status,
+                created_by = manager_id,
+            )
+            db.session.add(sp)
+            db.session.commit()
+            flash(f"Scheduling period '{label}' created successfully.", "success")
+            return redirect(url_for("manager_periods", manager_id=manager_id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error creating period: {str(e)}", "danger")
+
+    return render_template("manager_create_period.html", manager=manager)
+
+
+@app.route("/manager/<int:manager_id>/periods/<int:period_id>/close", methods=["POST"])
+def manager_close_period(manager_id: int, period_id: int):
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+    sp = SchedulingPeriod.query.get_or_404(period_id)
+    sp.close()
+    flash(f"Period '{sp.label}' has been closed.", "success")
+    return redirect(url_for("manager_periods", manager_id=manager_id))
 
 # Redirections
 
