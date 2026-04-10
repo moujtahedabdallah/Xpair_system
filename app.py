@@ -172,7 +172,7 @@ def booking_success(booking_id):
 @app.route('/manage/<int:booking_id>')
 def manage_booking(booking_id):
     booking = Booking.query.get_or_404(booking_id)
-    return render_template('manage_booking.html', booking=booking)
+    return render_template('customer_manage_booking.html', booking=booking)
 
 @app.route('/cancel/<int:booking_id>', methods=['POST'])
 def cancel_booking(booking_id):
@@ -271,13 +271,30 @@ def employee_add_job_notes(employee_id: int, booking_id: int):
 
 @app.route("/manager/<int:manager_id>/availability", methods=["GET"])
 def manager_availability(manager_id: int):
-    manager     = Manager.query.get_or_404(manager_id)
-    submissions = (
-        AvailabilityRecord.query
-        .order_by(AvailabilityRecord.status.asc(), AvailabilityRecord.created_at.desc())
-        .all()
-    )
-    return render_template("manager_availability_list.html", manager=manager, submissions=submissions)
+    manager   = Manager.query.get_or_404(manager_id)
+    period_id = request.args.get('period_id', type=int)
+
+    query = AvailabilityRecord.query
+    if period_id:
+        query = query.filter(AvailabilityRecord.periodID == period_id)
+
+    submissions = query.order_by(
+        AvailabilityRecord.status.asc(),
+        AvailabilityRecord.created_at.desc()
+    ).all()
+
+    # Get period label for display if filtering
+    period_label = None
+    if period_id:
+        from src.scheduling_period import SchedulingPeriod
+        sp = SchedulingPeriod.query.get(period_id)
+        period_label = sp.label if sp else None
+
+    return render_template("manager_availability_list.html",
+                           manager=manager,
+                           submissions=submissions,
+                           period_label=period_label,
+                           period_id=period_id)
 
 
 @app.route("/manager/<int:manager_id>/availability/<int:availability_id>", methods=["GET"])
@@ -594,7 +611,7 @@ def employee_availabilities(employee_id: int):
     employee = Employee.query.get_or_404(employee_id)
     sps      = SchedulingPeriod.query.order_by(SchedulingPeriod.start_date.asc()).all()
     periods  = [build_period_dict(sp, employee_id) for sp in sps]
-    return render_template("employee_availabilities.html", employee=employee, periods=periods)
+    return render_template("employee_availability_list.html", employee=employee, periods=periods)
 
 
 @app.route("/employee/<int:employee_id>/availabilities/<int:period_id>/enter", methods=["GET", "POST"])
@@ -887,7 +904,7 @@ def manager_modify_booking(manager_id: int, booking_id: int):
 
     manager = Manager.query.get_or_404(manager_id)
     booking = Booking.query.get_or_404(booking_id)
-    return render_template('manager_modify_booking.html', manager=manager, booking=booking)
+    return render_template('manager_modify_booking_select.html', manager=manager, booking=booking)
 
 
 @app.route("/manager/<int:manager_id>/bookings/<int:booking_id>/reschedule", methods=["GET", "POST"])

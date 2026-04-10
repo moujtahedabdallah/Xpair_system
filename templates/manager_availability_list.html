@@ -8,8 +8,15 @@
 <div class="container py-5">
   <div class="d-flex align-items-end justify-content-between mb-4">
     <div>
-      <h2 class="fw-bold mb-1">Availability Review (UC7)</h2>
-      <p class="text-muted mb-0">Demo Manager ID: {{ manager.managerID }}</p>
+      <h2 class="fw-bold mb-1">Availability Review</h2>
+      {% if period_label %}
+      <p class="text-muted mb-0">Showing submissions for <strong>{{ period_label }}</strong>
+        &nbsp;·&nbsp;
+        <a href="{{ url_for('manager_availability', manager_id=manager.managerID) }}" class="text-xpair small">View all</a>
+      </p>
+      {% else %}
+      <p class="text-muted mb-0">All submissions across all periods</p>
+      {% endif %}
     </div>
   </div>
 
