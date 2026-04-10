@@ -136,27 +136,55 @@
 
             <div class="col-lg-4">
                 <div class="card xpair-card p-4 sticky-top" style="top: 100px;">
-                    <h5 class="fw-bold mb-4">Booking Summary</h5>
-                    
-                    <div class="d-flex justify-content-between mb-3">
-                        <span class="text-muted small">Package</span>
-                        <span class="fw-bold small text-end" id="summary-service">Not selected</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-3">
-                        <span class="text-muted small">Size</span>
-                        <span class="fw-bold small text-end" id="summary-size">--</span>
-                    </div>
+                    <h5 class="fw-bold mb-4">Quote Summary</h5>
+
+                    <!-- Appointment -->
                     <div class="d-flex justify-content-between mb-3">
                         <span class="text-muted small">Appointment</span>
                         <span class="fw-bold small text-end" id="summary-datetime">--</span>
                     </div>
-                    
-                    <hr class="my-4">
+
+                    <hr class="my-3">
+
+                    <!-- Itemized Price Breakdown -->
+                    <div class="mb-2">
+                        <div class="text-muted small fw-bold text-uppercase mb-2" style="font-size:0.68rem; letter-spacing:0.05em;">Price Breakdown</div>
+
+                        <!-- Base price row -->
+                        <div class="d-flex justify-content-between mb-2" id="row-base" style="display:none !important;">
+                            <span class="small text-muted" id="label-base">Base price</span>
+                            <span class="small fw-bold" id="val-base">--</span>
+                        </div>
+
+                        <!-- Size adjustment row -->
+                        <div class="d-flex justify-content-between mb-2" id="row-size" style="display:none !important;">
+                            <span class="small text-muted" id="label-size">Size adjustment</span>
+                            <span class="small fw-bold" id="val-size">--</span>
+                        </div>
+
+                        <!-- Add-ons rows -->
+                        <div id="addon-rows"></div>
+
+                        <!-- Subtotal -->
+                        <div class="d-flex justify-content-between mb-1 pt-2 border-top" id="row-subtotal" style="display:none !important;">
+                            <span class="small text-muted">Subtotal</span>
+                            <span class="small fw-bold" id="val-subtotal">--</span>
+                        </div>
+                    </div>
+
+                    <hr class="my-3">
+
+                    <!-- Total -->
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <span class="fw-bold">Total Est.</span>
                         <h3 class="text-xpair fw-bold mb-0" id="summary-total">$0.00</h3>
                     </div>
-                    
+
+                    <!-- No selection state -->
+                    <div id="no-selection-msg" class="text-center text-muted small mb-3">
+                        <i class="bi bi-info-circle me-1"></i> Select a service to see your quote
+                    </div>
+
                     <button type="submit" class="btn btn-xpair w-100 py-3 fw-bold">Confirm Booking</button>
                 </div>
             </div>
@@ -170,19 +198,11 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // UI Elements
         const serviceInputs = document.querySelectorAll('.service-input');
-        const sizeInputs = document.querySelectorAll('.size-input');
-        const addonInputs = document.querySelectorAll('.addon-input');
-        const timeInputs = document.querySelectorAll('.time-input');
+        const sizeInputs    = document.querySelectorAll('.size-input');
+        const addonInputs   = document.querySelectorAll('.addon-input');
+        const timeInputs    = document.querySelectorAll('.time-input');
         const realDateInput = document.getElementById('real-date-input');
-
-        // Summary Elements
-        const summaryService = document.getElementById('summary-service');
-        const summarySize = document.getElementById('summary-size');
-        const summaryDateTime = document.getElementById('summary-datetime');
-        const summaryTotal = document.getElementById('summary-total');
-
         const sizeMultipliers = { 'small': 1.0, 'medium': 1.2, 'large': 1.4 };
 
         // Calendar
@@ -196,45 +216,89 @@
         });
 
         function updateSummary() {
-            let basePrice = 0;
-            let multiplier = 1.0;
+            let basePrice   = 0;
+            let multiplier  = 1.0;
             let addonsTotal = 0;
 
-            // Service Logic
             const selectedService = document.querySelector('.service-input:checked');
-            if (selectedService) {
-                basePrice = parseFloat(selectedService.getAttribute('data-price'));
-                summaryService.textContent = selectedService.getAttribute('data-name');
-            }
+            const selectedSize    = document.querySelector('.size-input:checked');
+            const selectedTime    = document.querySelector('.time-input:checked');
 
-            // Size Logic
-            const selectedSize = document.querySelector('.size-input:checked');
-            if (selectedSize) {
-                multiplier = sizeMultipliers[selectedSize.value.toLowerCase()] || 1.0;
-                summarySize.textContent = selectedSize.value;
-            }
-
-            // Addons Logic
-            addonInputs.forEach(addon => {
-                if (addon.checked) addonsTotal += parseFloat(addon.getAttribute('data-price'));
-            });
-
-            // Date/Time Logic
-            const selectedTime = document.querySelector('.time-input:checked');
+            // Date/Time
             let dt = realDateInput.value || "--";
             if (selectedTime) dt += " @ " + selectedTime.value;
-            summaryDateTime.textContent = dt;
+            document.getElementById('summary-datetime').textContent = dt;
 
-            // Calculation
-            if (selectedService) {
-                const finalTotal = (basePrice * multiplier) + addonsTotal;
-                summaryTotal.textContent = '$' + finalTotal.toFixed(2);
+            // No service — reset
+            if (!selectedService) {
+                document.getElementById('no-selection-msg').style.display = 'block';
+                document.getElementById('row-base').style.display         = 'none';
+                document.getElementById('row-size').style.display         = 'none';
+                document.getElementById('row-subtotal').style.display     = 'none';
+                document.getElementById('addon-rows').innerHTML           = '';
+                document.getElementById('summary-total').textContent      = '$0.00';
+                return;
             }
+
+            document.getElementById('no-selection-msg').style.display = 'none';
+
+            // Base price
+            basePrice = parseFloat(selectedService.getAttribute('data-price'));
+            var serviceName = selectedService.getAttribute('data-name');
+            document.getElementById('row-base').style.display = 'flex';
+            document.getElementById('label-base').textContent = serviceName;
+            document.getElementById('val-base').textContent   = '$' + basePrice.toFixed(2);
+
+            // Size multiplier
+            if (selectedSize) {
+                multiplier = sizeMultipliers[selectedSize.value.toLowerCase()] || 1.0;
+                var diff   = (basePrice * multiplier) - basePrice;
+                var sizeLabel = selectedSize.value + ' vehicle (' + (multiplier === 1.0 ? 'no adjustment' : 'x' + multiplier.toFixed(1)) + ')';
+                document.getElementById('row-size').style.display  = 'flex';
+                document.getElementById('label-size').textContent  = sizeLabel;
+                document.getElementById('val-size').textContent    = diff > 0 ? '+$' + diff.toFixed(2) : '$0.00';
+            } else {
+                document.getElementById('row-size').style.display = 'none';
+            }
+
+            // Add-ons
+            var addonRowsEl = document.getElementById('addon-rows');
+            addonRowsEl.innerHTML = '';
+            addonInputs.forEach(function(addon) {
+                if (addon.checked) {
+                    var price = parseFloat(addon.getAttribute('data-price'));
+                    addonsTotal += price;
+                    var label = addon.closest('.form-check').querySelector('label').textContent.trim();
+                    var row = document.createElement('div');
+                    row.className = 'd-flex justify-content-between mb-2';
+                    row.innerHTML = '<span class="small text-muted">' + label + '</span>' +
+                                    '<span class="small fw-bold">+$' + price.toFixed(2) + '</span>';
+                    addonRowsEl.appendChild(row);
+                }
+            });
+
+            // Total
+            var subtotal = (basePrice * multiplier) + addonsTotal;
+            document.getElementById('row-subtotal').style.display = 'flex';
+            document.getElementById('val-subtotal').textContent   = '$' + subtotal.toFixed(2);
+            document.getElementById('summary-total').textContent  = '$' + subtotal.toFixed(2);
         }
-        
-        // Add Listeners.
-        [...serviceInputs, ...sizeInputs, ...addonInputs, ...timeInputs].forEach(input => {
+
+        // Listeners on inputs
+        [...serviceInputs, ...sizeInputs, ...addonInputs, ...timeInputs].forEach(function(input) {
             input.addEventListener('change', updateSummary);
+        });
+
+        // Listeners on selectable card labels (for hidden radio inputs)
+        document.querySelectorAll('.selectable-card-label').forEach(function(label) {
+            label.addEventListener('click', function() {
+                setTimeout(updateSummary, 10);
+            });
+        });
+
+        // Checkbox add-ons
+        addonInputs.forEach(function(addon) {
+            addon.addEventListener('change', updateSummary);
         });
     });
 </script>
