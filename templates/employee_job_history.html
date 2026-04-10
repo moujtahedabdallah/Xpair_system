@@ -14,7 +14,9 @@
   <div class="d-flex align-items-end justify-content-between mb-4 flex-wrap gap-3">
     <div>
       <h2 class="fw-bold mb-1">Job History</h2>
-      <p class="text-muted mb-0">All completed jobs — {{ history | length }} record{{ 's' if history | length != 1 }}</p>
+      <p class="text-muted mb-0">
+        {{ completed_jobs | length }} completed · {{ cancelled_jobs | length }} cancelled
+      </p>
     </div>
 
     <!-- Filters -->
@@ -42,44 +44,60 @@
     </form>
   </div>
 
-  {% if history %}
-  <!-- Summary stats -->
+  <!-- KPI Cards -->
   <div class="row g-3 mb-4">
-    {% set ns = namespace(total_mins=0) %}
-    {% for b in history %}{% if b.service %}{% set ns.total_mins = ns.total_mins + b.service.service_duration %}{% endif %}{% endfor %}
+
+    <!-- Completed -->
     <div class="col-6 col-md-3">
       <div class="card xpair-card p-3 text-center">
-        <div class="fw-bold fs-4 text-xpair">{{ history | length }}</div>
+        <div class="fw-bold fs-4 text-xpair">{{ completed_jobs | length }}</div>
         <div class="text-muted small">Jobs Completed</div>
       </div>
     </div>
+
+    <!-- Hours Worked -->
     <div class="col-6 col-md-3">
       <div class="card xpair-card p-3 text-center">
-        <div class="fw-bold fs-4 text-xpair">{{ (ns.total_mins / 60) | round(1) }}</div>
+        <div class="fw-bold fs-4 text-xpair">{{ (total_mins / 60) | round(1) }}</div>
         <div class="text-muted small">Hours Worked</div>
       </div>
     </div>
+
+    <!-- Cancellations -->
     <div class="col-6 col-md-3">
       <div class="card xpair-card p-3 text-center">
-        {% set services_with_notes = history | selectattr('job_notes') | list %}
-        <div class="fw-bold fs-4 text-xpair">{{ services_with_notes | length }}</div>
-        <div class="text-muted small">Jobs with Notes</div>
+        <div class="fw-bold fs-4 text-xpair">{{ cancelled_jobs | length }}</div>
+        <div class="text-muted small">Cancellations</div>
       </div>
     </div>
+
+    <!-- Services Performed -->
     <div class="col-6 col-md-3">
-      <div class="card xpair-card p-3 text-center">
-        {% set with_images = history | selectattr('before_images') | list %}
-        <div class="fw-bold fs-4 text-xpair">{{ with_images | length }}</div>
-        <div class="text-muted small">With Before/After</div>
+      <div class="card xpair-card p-3">
+        <div class="fw-bold small text-muted text-uppercase mb-2" style="font-size:0.65rem; letter-spacing:0.05em;">Services Performed</div>
+        {% if services_breakdown %}
+          {% for name, count in services_breakdown %}
+          <div class="d-flex justify-content-between align-items-center {% if not loop.last %}mb-1{% endif %}" style="font-size:0.78rem;">
+            <span class="text-dark fw-semibold text-truncate me-2">{{ name }}</span>
+            <span class="badge bg-secondary-subtle text-secondary rounded-pill flex-shrink-0">{{ count }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-muted small fst-italic">No completed jobs yet</div>
+        {% endif %}
       </div>
     </div>
+
   </div>
 
-  <div class="card xpair-card overflow-hidden">
-    {% for booking in history | sort(attribute='date', reverse=True) %}
+  <!-- Completed Jobs -->
+  {% if completed_jobs %}
+  <h5 class="fw-bold mb-3">Completed Jobs</h5>
+  <div class="card xpair-card overflow-hidden mb-5">
+    {% for booking in completed_jobs | sort(attribute='date', reverse=True) %}
     <a class="list-group-item list-group-item-action p-4 bg-white {% if not loop.last %}border-bottom{% endif %}"
        href="{{ url_for('employee_job_details', employee_id=employee.employeeID, booking_id=booking.bookingID) }}"
-       style="border-left: 4px solid #D1D5DB;">
+       style="border-left: 4px solid #10B981;">
       <div class="d-flex align-items-center justify-content-between gap-3">
         <div class="flex-grow-1">
           <div class="d-flex align-items-center gap-2 mb-1">
@@ -114,17 +132,50 @@
     </a>
     {% endfor %}
   </div>
-
   {% else %}
-    <div class="card xpair-card p-5 text-center">
-      <div class="mb-3">
-        <div style="width:64px; height:64px; border-radius:50%; background:#F3F4F6; display:inline-flex; align-items:center; justify-content:center;">
-          <i class="bi bi-clock-history text-muted" style="font-size:1.6rem;"></i>
+  <div class="card xpair-card p-5 text-center mb-5">
+    <div class="mb-3">
+      <div style="width:64px; height:64px; border-radius:50%; background:#F3F4F6; display:inline-flex; align-items:center; justify-content:center;">
+        <i class="bi bi-clock-history text-muted" style="font-size:1.6rem;"></i>
+      </div>
+    </div>
+    <h5 class="fw-bold mb-2">No completed jobs {% if filter_year or filter_month %}for this period{% endif %}</h5>
+    <p class="text-muted mb-0">Completed jobs will appear here once you finish your first assignment.</p>
+  </div>
+  {% endif %}
+
+  <!-- Cancelled Jobs -->
+  {% if cancelled_jobs %}
+  <h5 class="fw-bold mb-3 text-muted">Cancelled Jobs</h5>
+  <div class="card xpair-card overflow-hidden">
+    {% for booking in cancelled_jobs %}
+    <div class="p-4 {% if not loop.last %}border-bottom{% endif %}"
+         style="background:#F9FAFB; border-left: 4px solid #D1D5DB;">
+      <div class="d-flex align-items-center justify-content-between gap-3">
+        <div class="flex-grow-1">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="fw-bold">JOB-{{ booking.bookingID }}</span>
+            <span class="badge bg-secondary-subtle text-secondary" style="font-size:0.65rem;">Cancelled</span>
+          </div>
+          <div class="text-muted small mb-1">
+            <i class="bi bi-calendar3 me-1"></i>
+            {{ booking.date.strftime('%A, %b %d, %Y') }}
+            &nbsp;·&nbsp;
+            {{ booking.start_time.strftime('%I:%M %p') }} – {{ booking.end_time.strftime('%I:%M %p') }}
+          </div>
+          <div class="small">
+            <span class="fw-semibold">{{ booking.service.service_name if booking.service else '—' }}</span>
+            &nbsp;·&nbsp;
+            <span class="text-muted">{{ (booking.customer.first_name ~ ' ' ~ booking.customer.last_name) if booking.customer else '—' }}</span>
+          </div>
+        </div>
+        <div class="text-muted small flex-shrink-0">
+          {{ booking.service.service_duration ~ ' min' if booking.service }}
         </div>
       </div>
-      <h5 class="fw-bold mb-2">No completed jobs {% if filter_year or filter_month %}for this period{% endif %}</h5>
-      <p class="text-muted mb-0">Completed jobs will appear here once you finish your first assignment.</p>
     </div>
+    {% endfor %}
+  </div>
   {% endif %}
 
 </div>

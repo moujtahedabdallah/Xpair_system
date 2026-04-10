@@ -340,6 +340,18 @@ def employee_schedule(employee_id: int):
         .all()
     )
 
+    # Cancelled jobs — visible but not clickable
+    cancelled_jobs = (
+        Booking.query
+        .filter(
+            Booking.assigned_employee == employee_id,
+            Booking.booking_status == 'cancelled',
+            Booking.is_blocked == False,
+        )
+        .order_by(Booking.date.desc())
+        .all()
+    )
+
     # Show availability banner only if there's an open period the employee hasn't submitted for yet
     open_period = SchedulingPeriod.query.filter_by(status='open').first()
     if open_period:
@@ -355,6 +367,7 @@ def employee_schedule(employee_id: int):
         employee=employee,
         schedule_periods=schedule_periods,
         flagged_jobs=flagged_jobs,
+        cancelled_jobs=cancelled_jobs,
         show_availability_banner=show_availability_banner,
     )
 
@@ -363,29 +376,53 @@ def employee_schedule(employee_id: int):
 
 @app.route("/employee/<int:employee_id>/history", methods=["GET"])
 def employee_job_history(employee_id: int):
-    employee    = Employee.query.get_or_404(employee_id)
-    filter_year = request.args.get('year', type=int)
+    employee     = Employee.query.get_or_404(employee_id)
+    filter_year  = request.args.get('year', type=int)
     filter_month = request.args.get('month', type=int)
 
-    all_history = employee.view_job_history()
+    # Completed jobs
+    completed_jobs = employee.view_job_history()
+    # Cancelled jobs
+    cancelled_jobs = Booking.query.filter_by(
+        assigned_employee=employee_id,
+        booking_status='cancelled'
+    ).order_by(Booking.date.desc()).all()
 
-    # Apply optional month/year filter
+    # Apply filters to both
     if filter_year:
-        all_history = [b for b in all_history if b.date.year == filter_year]
+        completed_jobs = [b for b in completed_jobs if b.date.year == filter_year]
+        cancelled_jobs = [b for b in cancelled_jobs if b.date.year == filter_year]
     if filter_month:
-        all_history = [b for b in all_history if b.date.month == filter_month]
+        completed_jobs = [b for b in completed_jobs if b.date.month == filter_month]
+        cancelled_jobs = [b for b in cancelled_jobs if b.date.month == filter_month]
 
-    # Build year options for filter dropdown
-    all_jobs_for_years = employee.view_job_history()
-    years = sorted(set(b.date.year for b in all_jobs_for_years), reverse=True)
+    # Build year options from all jobs
+    all_jobs = employee.view_job_history() + Booking.query.filter_by(
+        assigned_employee=employee_id, booking_status='cancelled'
+    ).all()
+    years = sorted(set(b.date.year for b in all_jobs), reverse=True)
+
+    # KPI: Hours worked
+    total_mins = sum(b.service.service_duration for b in completed_jobs if b.service)
+
+    # KPI: Services performed breakdown (completed only)
+    service_counts = {}
+    for b in completed_jobs:
+        if b.service:
+            name = b.service.service_name
+            service_counts[name] = service_counts.get(name, 0) + 1
+    services_breakdown = sorted(service_counts.items(), key=lambda x: x[1], reverse=True)
 
     return render_template(
         "employee_job_history.html",
         employee=employee,
-        history=all_history,
+        completed_jobs=completed_jobs,
+        cancelled_jobs=cancelled_jobs,
         years=years,
         filter_year=filter_year,
         filter_month=filter_month,
+        total_mins=total_mins,
+        services_breakdown=services_breakdown,
     )
 
 
