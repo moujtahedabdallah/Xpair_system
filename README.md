@@ -32,6 +32,24 @@ python3 app.py
 The database will be generated automatically on first run.
 Access the website at: http://127.0.0.1:5000
 
+Seed the database (recommended for testing):
+python3 seed_data.py
+
+Default login credentials after seeding:
+Manager  1 → johnsnow@xpair.com        / 348password  (John Snow)
+Manager  2 → lisa.chen@xpair.com       / password123  (Lisa Chen)
+Employee 1 → test_employee@xpair.com   / password123  (Mike Johnson)
+Employee 2 → carlos.reyes@xpair.com    / password123  (Carlos Reyes)
+Employee 3 → aisha.dupont@xpair.com    / password123  (Aisha Dupont)
+Customer 1 → test_customer@gmail.com   / password123  (John Doe)
+Customer 2 → sarah.martin@gmail.com    / password123  (Sarah Martin)
+Customer 3 → marc.leblanc@gmail.com    / password123  (Marc Leblanc)
+Customer 4 → priya.sharma@gmail.com    / password123  (Priya Sharma)
+
+To reset the database and reseed from scratch:
+python3 reset_db.py
+python3 seed_data.py
+
 ## Project Structure
 src is where .py files go
 static is where .html files go
