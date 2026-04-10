@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}My Schedule{% endblock %}
+
+<!-- UC5: ASSIGNED SCHEDULE PAGE (EMPLOYEE VIEW) -->
+
+{% block content %}
+<div class="container py-5">
+
+  <!-- UC4: Availability Banner -->
+  <div class="d-flex align-items-center justify-content-between p-3 mb-4 rounded-3"
+       style="background: #FEF3C7; border: 1px solid #FCD34D;">
+    <div class="d-flex align-items-center gap-3">
+      <div style="width:36px; height:36px; border-radius:50%; background:#F59E0B; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <i class="bi bi-calendar-exclamation text-white" style="font-size:1rem;"></i>
+      </div>
+      <div>
+        <div class="fw-bold small" style="color:#92400E;">Time to Submit Your Availability!</div>
+        <div class="small" style="color:#B45309;">Submit your availability for the next scheduling period as soon as possible.</div>
+      </div>
+    </div>
+    <a href="{{ url_for('employee_availabilities', employee_id=employee.employeeID) }}"
+       class="btn btn-sm fw-bold px-3 py-2 text-nowrap"
+       style="background:#F59E0B; color:white; border:none; border-radius:8px;">
+      <i class="bi bi-calendar3 me-1"></i> My Availabilities
+    </a>
+  </div>
+
+  <div class="d-flex align-items-end justify-content-between mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">My Schedule</h2>
+      <p class="text-muted mb-0">Confirmed jobs grouped by scheduling period</p>
+    </div>
+  </div>
+
+  {% if schedule_periods %}
+    {% for entry in schedule_periods %}
+    <div class="mb-5">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div>
+          <h5 class="fw-bold mb-0">{{ entry.period.label }}</h5>
+          <div class="text-muted small">
+            {{ entry.period.start_date.strftime('%b %d') }} – {{ entry.period.end_date.strftime('%b %d, %Y') }}
+            &nbsp;·&nbsp;
+            <span class="badge rounded-pill px-2
+              {% if entry.period.status == 'open' %}bg-success-subtle text-success
+              {% elif entry.period.status == 'upcoming' %}bg-primary-subtle text-primary
+              {% else %}bg-secondary-subtle text-secondary{% endif %}">
+              {{ entry.period.status | capitalize }}
+            </span>
+          </div>
+        </div>
+        <div class="ms-auto text-muted small fw-bold">
+          {{ entry.bookings | length }} job{{ 's' if entry.bookings | length != 1 }}
+        </div>
+      </div>
+
+      <div class="card xpair-card overflow-hidden">
+        {% for booking in entry.bookings %}
+        <a class="list-group-item list-group-item-action p-4 bg-white {% if not loop.last %}border-bottom{% endif %}"
+           href="{{ url_for('employee_job_details', employee_id=employee.employeeID, booking_id=booking.bookingID) }}"
+           style="{% if booking.booking_status == 'in_progress' %}border-left: 4px solid #F59E0B;{% elif booking.booking_status == 'confirmed' %}border-left: 4px solid #10B981;{% endif %}">
+          <div class="d-flex align-items-center justify-content-between gap-3">
+            <div class="flex-grow-1">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="fw-bold">JOB-{{ booking.bookingID }}</span>
+                {% if booking.booking_status == 'in_progress' %}
+                  <span class="badge bg-warning text-dark" style="font-size:0.65rem;">● Active Now</span>
+                {% elif booking.booking_status == 'confirmed' %}
+                  <span class="badge bg-success-subtle text-success" style="font-size:0.65rem;">Confirmed</span>
+                {% endif %}
+              </div>
+              <div class="text-muted small mb-1">
+                <i class="bi bi-calendar3 me-1"></i>
+                {{ booking.date.strftime('%A, %b %d %Y') }} &nbsp;·&nbsp;
+                {{ booking.start_time.strftime('%I:%M %p') }} – {{ booking.end_time.strftime('%I:%M %p') }}
+                &nbsp;·&nbsp; {{ booking.service.service_duration }} min
+              </div>
+              <div class="small">
+                <span class="fw-semibold">{{ booking.service.service_name if booking.service else '—' }}</span>
+                &nbsp;·&nbsp;
+                <span class="text-muted">{{ (booking.customer.first_name ~ ' ' ~ booking.customer.last_name) if booking.customer else '—' }}</span>
+              </div>
+              {% if booking.service_address %}
+              <div class="small text-muted mt-1"><i class="bi bi-geo-alt me-1"></i>{{ booking.service_address }}</div>
+              {% endif %}
+            </div>
+            <i class="bi bi-chevron-right text-muted flex-shrink-0"></i>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+
+      <div class="d-flex gap-4 mt-2 px-1 small text-muted">
+        {% set ns = namespace(total_mins=0, completed=0, upcoming=0) %}
+        {% for b in entry.bookings %}
+          {% if b.service %}{% set ns.total_mins = ns.total_mins + b.service.service_duration %}{% endif %}
+          {% if b.booking_status == 'completed' %}{% set ns.completed = ns.completed + 1 %}{% endif %}
+          {% if b.booking_status in ['confirmed', 'in_progress'] %}{% set ns.upcoming = ns.upcoming + 1 %}{% endif %}
+        {% endfor %}
+        <span><i class="bi bi-clock me-1"></i>{{ (ns.total_mins / 60) | round(1) }} hrs total</span>
+        <span><i class="bi bi-check2-circle me-1"></i>{{ ns.completed }} completed</span>
+        <span><i class="bi bi-hourglass-split me-1"></i>{{ ns.upcoming }} upcoming</span>
+      </div>
+    </div>
+    {% endfor %}
+
+  {% else %}
+    <div class="card xpair-card p-5 text-center">
+      <div class="mb-3">
+        <div style="width:64px; height:64px; border-radius:50%; background:#F3F4F6; display:inline-flex; align-items:center; justify-content:center;">
+          <i class="bi bi-calendar2-x text-muted" style="font-size:1.6rem;"></i>
+        </div>
+      </div>
+      <h5 class="fw-bold mb-2">No confirmed jobs yet</h5>
+      <p class="text-muted mb-4">Your confirmed schedule will appear here once the manager assigns and confirms your jobs for a scheduling period.</p>
+      <a href="{{ url_for('employee_availabilities', employee_id=employee.employeeID) }}"
+         class="btn btn-xpair fw-bold px-5 py-2 rounded-pill mx-auto" style="width:fit-content;">
+        Submit My Availability
+      </a>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

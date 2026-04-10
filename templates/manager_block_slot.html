@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Block Time Slot{% endblock %}
+
+<!-- UC6: MANAGER BLOCK TIME SLOT -->
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+  .flatpickr-day.selected { background: var(--xpair-red) !important; border-color: var(--xpair-red) !important; }
+</style>
+
+<div class="container py-5" style="max-width: 720px;">
+
+  <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
+     href="{{ url_for('manager_bookings', manager_id=manager.managerID) }}">
+    <i class="bi bi-arrow-left me-2"></i> Back to Bookings
+  </a>
+
+  <h2 class="fw-bold mb-1">Block Time Slot</h2>
+  <p class="text-muted mb-4">Reserve a time period that cannot be booked by customers.</p>
+
+  <div class="card xpair-card p-4">
+    <form method="POST"
+          action="{{ url_for('manager_block_slot', manager_id=manager.managerID) }}">
+
+      <!-- Date -->
+      <div class="mb-4">
+        <label class="form-label fw-bold small">Date</label>
+        <input type="text" id="date-picker" name="date"
+               class="form-control bg-light border-0 py-2"
+               placeholder="Select date" required>
+      </div>
+
+      <!-- Start / End Time -->
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <label class="form-label fw-bold small">Start Time</label>
+          <select name="start_time" class="form-select bg-light border-0" required>
+            <option value="" disabled selected>Select start time</option>
+            {% for opt in time_options %}
+            <option value="{{ opt.value }}">{{ opt.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-bold small">End Time</label>
+          <select name="end_time" class="form-select bg-light border-0" required>
+            <option value="" disabled selected>Select end time</option>
+            {% for opt in time_options %}
+            <option value="{{ opt.value }}">{{ opt.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Reason -->
+      <div class="mb-4">
+        <label class="form-label fw-bold small">Reason for Blocking</label>
+        <textarea name="reason" class="form-control bg-light border-0" rows="3"
+                  placeholder="e.g. Equipment maintenance, Staff meeting, Public holiday..."
+                  required maxlength="200"></textarea>
+        <div class="form-text">Max 200 characters. This reason is stored on the blocked slot record.</div>
+      </div>
+
+      <!-- Warning -->
+      <div class="p-3 rounded-3 mb-4" style="background:#FEF9C3; border:1px solid #FDE047;">
+        <div class="d-flex gap-2 align-items-start">
+          <i class="bi bi-exclamation-triangle" style="color:#CA8A04; margin-top:2px;"></i>
+          <div class="small" style="color:#854D0E;">
+            Blocked slots will not appear in customer-facing booking views. They are stored internally
+            as <code>is_blocked = True</code> and excluded from all dashboard and booking queries.
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end gap-3">
+        <a href="{{ url_for('manager_bookings', manager_id=manager.managerID) }}"
+           class="btn btn-outline-secondary fw-bold px-4">Cancel</a>
+        <button type="submit" class="btn btn-xpair fw-bold px-5">Block Slot</button>
+      </div>
+    </form>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+  flatpickr("#date-picker", { minDate: "today", dateFormat: "Y-m-d" });
+</script>
+{% endblock %}

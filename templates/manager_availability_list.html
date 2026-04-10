@@ -30,8 +30,8 @@
         <thead class="table-light">
           <tr>
             <th>Availability ID</th>
-            <th>Employee ID</th>
-            <th>Period</th>
+            <th>Employee</th>
+            <th>{% if period_label %}Date{% else %}Period{% endif %}</th>
             <th>Day</th>
             <th>Time</th>
             <th>Status</th>
@@ -42,8 +42,8 @@
           {% for s in submissions %}
           <tr>
             <td class="fw-bold">SUB-{{ s.availabilityID }}</td>
-            <td>{{ s.employeeID }}</td>
-            <td>{{ s.periodID }}</td>
+            <td>{{ s.employee.first_name ~ ' ' ~ s.employee.last_name if s.employee else s.employeeID }}</td>
+            <td>{% if period_label %}{{ s.start_time.strftime('%a, %b %d, %Y') }}{% else %}{{ s.period.label if s.period else 'Period ' ~ s.periodID }}{% endif %}</td>
             <td>{{ s.day }}</td>
             <td>
               {{ s.start_time.strftime('%I:%M %p') }} - {{ s.end_time.strftime('%I:%M %p') }}

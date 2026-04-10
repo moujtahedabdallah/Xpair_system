@@ -22,7 +22,7 @@ class AvailabilityRecord(db.Model):
     
     # Relationships for SQLAlchemy
     employee = db.relationship('Employee', backref='availabilities')
-    manager = db.relationship('Manager', backref='reviewed_availabilities')
+    manager  = db.relationship('Manager', backref='reviewed_availabilities')
     
     # Methods
     def validate_availability(self):

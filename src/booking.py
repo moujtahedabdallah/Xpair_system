@@ -15,6 +15,7 @@ class Booking(db.Model):
     block_reason = db.Column(db.String(200))
     booking_summary = db.Column(db.String(500))
     booking_status = db.Column(db.String(20), default='pending')  # pending, confirmed, cancelled, completed
+    service_address = db.Column(db.String(300), nullable=True)   # where the detailing job takes place
     before_images = db.Column(db.String(500))  # file path e.g. '/uploads/bookings/123/before.jpg'
     after_images = db.Column(db.String(500))  # file path e.g. '/uploads/bookings/123/after.jpg'
     job_notes = db.Column(db.Text)

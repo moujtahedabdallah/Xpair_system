@@ -49,6 +49,13 @@
                     <input type="tel" name="phone" class="form-control bg-light border-0 py-2" placeholder="(555) 123-4567">
                 </div>
 
+                <!-- Customer-only: Home Address -->
+                <div class="mb-3" id="signupAddressWrap">
+                    <label class="form-label fw-bold small">Home Address <span class="text-muted fw-normal">(optional — used to pre-fill bookings)</span></label>
+                    <input type="text" name="address" class="form-control bg-light border-0 py-2"
+                           placeholder="e.g. 123 Maple Ave, Montreal, QC H3Z 2Y7">
+                </div>
+
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-bold small">Password</label>
@@ -114,6 +121,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const deptWrap   = document.getElementById('signupDeptWrap');
     const deptSelect = document.getElementById('signupDeptSelect');
     const emailLabel = document.getElementById('emailLabel');
+    const addressWrap = document.getElementById('signupAddressWrap');
 
     roleBtns.forEach(btn => {
         btn.addEventListener('click', function () {
@@ -125,10 +133,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 deptWrap.style.display = 'block';
                 deptSelect.required = true;
                 emailLabel.textContent = 'Business Email Address';
+                addressWrap.style.display = 'none';
             } else {
                 deptWrap.style.display = 'none';
                 deptSelect.required = false;
                 emailLabel.textContent = 'Email Address';
+                addressWrap.style.display = 'block';
             }
         });
     });

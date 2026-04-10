@@ -39,6 +39,15 @@
                     </span>
                 </div>
                 <div class="col-md-4 d-flex gap-2 justify-content-md-end">
+                    {% if sp.status == 'upcoming' %}
+                    <form method="POST"
+                          action="{{ url_for('manager_open_period', manager_id=manager.managerID, period_id=sp.periodID) }}">
+                        <button type="submit" class="btn btn-sm btn-outline-success fw-bold px-3"
+                                onclick="return confirm('Open this period for employee submissions?')">
+                            <i class="bi bi-unlock me-1"></i> Open
+                        </button>
+                    </form>
+                    {% endif %}
                     {% if sp.status == 'open' %}
                     <form method="POST"
                           action="{{ url_for('manager_close_period', manager_id=manager.managerID, period_id=sp.periodID) }}">

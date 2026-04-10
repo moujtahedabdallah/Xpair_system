@@ -206,10 +206,10 @@ class Manager(Person):
         booking.assigned_employee = employeeID
         db.session.commit()
 
-        return True
-
         # Triggers email notification
         from .employee import Employee
         assigned_emp = db.session.get(Employee, employeeID)
         from .notification_service import NotificationService
         NotificationService().notify(recipient=assigned_emp, event='job_assigned', occupant=booking)
+
+        return True

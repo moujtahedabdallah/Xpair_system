@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_mail import Mail
+from werkzeug.security import generate_password_hash
+from werkzeug.utils import secure_filename
 from src.database import db
 
 # Import your Problem Domain models from the /src folder
@@ -37,6 +39,12 @@ app.config['MAIL_SUPPRESS_SEND'] = True  # This "mutes" the email but keeps the 
 
 # Security: Required for Flask to handle session-based "Flash" messages
 app.config['SECRET_KEY'] = 'xpair_secret_key_2026'
+
+# File Uploads: Store job images in /static/uploads/jobs/<booking_id>/
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'jobs')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 # INITIALIZATION
@@ -80,7 +88,12 @@ def booking_page():
             "Black Surface Restoration (Plastics)": 40.00
         }
 
-        return render_template('book.html', services=all_services, addons=add_ons)
+        # Pass customer so address can be pre-filled if logged in
+        logged_in_customer = None
+        if session.get('user_role') == 'customer':
+            logged_in_customer = db.session.get(Customer, session['user_id'])
+
+        return render_template('book.html', services=all_services, addons=add_ons, customer=logged_in_customer)
 
     # --- HANDLING FORM SUBMISSION ---
     if request.method == 'POST':
@@ -98,6 +111,7 @@ def booking_page():
         time_str     = request.form.get('time')
         instructions = request.form.get('notes')
         addons_list  = request.form.getlist('addons')
+        service_address = request.form.get('service_address', '').strip() or None
 
         try:
             start_dt         = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %I:%M %p")
@@ -108,7 +122,7 @@ def booking_page():
             return redirect(url_for('booking_page'))
 
         if session.get('user_role') == 'customer':
-            customer = Customer.query.get(session['user_id'])
+            customer = db.session.get(Customer, session['user_id'])
         else:
             customer = Customer.query.filter_by(email=email).first()
             if not customer:
@@ -124,7 +138,7 @@ def booking_page():
         new_vehicle = None
 
         if session.get('user_role') == 'customer' and customer.vehicle_id:
-            new_vehicle = Vehicle.query.get(customer.vehicle_id)
+            new_vehicle = db.session.get(Vehicle, customer.vehicle_id)
             if new_vehicle:
                 new_vehicle.update_size(vehicle_size)
             else:
@@ -147,7 +161,8 @@ def booking_page():
             customerID=customer.customerID, serviceID=service_id,
             vehicleID=new_vehicle.vehicleID, date=start_dt.date(),
             start_time=start_dt, end_time=end_dt,
-            booking_status='pending', job_notes=instructions
+            booking_status='pending', job_notes=instructions,
+            service_address=service_address
         )
 
         try:
@@ -208,11 +223,24 @@ def reschedule_booking(booking_id):
 @app.route("/employee/<int:employee_id>/jobs", methods=["GET"])
 def employee_jobs(employee_id: int):
     employee = Employee.query.get_or_404(employee_id)
-    jobs = (
+    jobs_raw = (
         Booking.query
         .filter(Booking.assigned_employee == employee_id)
-        .order_by(Booking.booking_status.asc(), Booking.start_time.asc())
         .all()
+    )
+    # Sort by urgency: active jobs first, then by date ascending, completed/cancelled last
+    status_priority = {
+        'in_progress': 0,
+        'confirmed':   1,
+        'assigned':    2,
+        'pending':     3,
+        'on_hold':     4,
+        'completed':   5,
+        'cancelled':   6,
+    }
+    jobs = sorted(
+        jobs_raw,
+        key=lambda b: (status_priority.get(b.booking_status, 9), b.start_time)
     )
     return render_template("employee_jobs.html", employee=employee, jobs=jobs)
 
@@ -238,6 +266,9 @@ def employee_update_job_status(employee_id: int, booking_id: int):
 
     new_status = (request.form.get("booking_status") or "").strip()
     try:
+        if booking.booking_status == 'on_hold':
+            flash("This job is on hold. The manager must resolve the issue before the status can be changed.", "danger")
+            return redirect(url_for("employee_job_details", employee_id=employee_id, booking_id=booking_id))
         booking.update_job_status(new_status)
         flash(f"Job status updated to '{new_status}'.", "success")
     except Exception as e:
@@ -267,6 +298,97 @@ def employee_add_job_notes(employee_id: int, booking_id: int):
     return redirect(url_for("employee_job_details", employee_id=employee_id, booking_id=booking_id))
 
 
+# --- UC5: ASSIGNED SCHEDULE (view_assigned_schedule) ----------------------------------------------
+
+@app.route("/employee/<int:employee_id>/schedule", methods=["GET"])
+def employee_schedule(employee_id: int):
+    employee = Employee.query.get_or_404(employee_id)
+    periods  = SchedulingPeriod.query.order_by(SchedulingPeriod.start_date.desc()).all()
+
+    # Group confirmed/in-progress bookings by which scheduling period their date falls within
+    all_assigned = (
+        Booking.query
+        .filter(
+            Booking.assigned_employee == employee_id,
+            Booking.booking_status.in_(['confirmed', 'in_progress', 'completed'])
+        )
+        .order_by(Booking.start_time.asc())
+        .all()
+    )
+
+    schedule_periods = []
+    for sp in periods:
+        bookings_in_period = [
+            b for b in all_assigned
+            if sp.start_date <= b.date <= sp.end_date
+        ]
+        if bookings_in_period:
+            schedule_periods.append({
+                'period': sp,
+                'bookings': bookings_in_period,
+            })
+
+    return render_template("employee_schedule.html", employee=employee, schedule_periods=schedule_periods)
+
+
+# --- UC5: JOB HISTORY (view_job_history) ----------------------------------------------
+
+@app.route("/employee/<int:employee_id>/history", methods=["GET"])
+def employee_job_history(employee_id: int):
+    employee    = Employee.query.get_or_404(employee_id)
+    filter_year = request.args.get('year', type=int)
+    filter_month = request.args.get('month', type=int)
+
+    all_history = employee.view_job_history()
+
+    # Apply optional month/year filter
+    if filter_year:
+        all_history = [b for b in all_history if b.date.year == filter_year]
+    if filter_month:
+        all_history = [b for b in all_history if b.date.month == filter_month]
+
+    # Build year options for filter dropdown
+    all_jobs_for_years = employee.view_job_history()
+    years = sorted(set(b.date.year for b in all_jobs_for_years), reverse=True)
+
+    return render_template(
+        "employee_job_history.html",
+        employee=employee,
+        history=all_history,
+        years=years,
+        filter_year=filter_year,
+        filter_month=filter_month,
+    )
+
+
+# --- UC5: BLOCK JOB (block_job) ----------------------------------------------
+
+@app.route("/employee/<int:employee_id>/jobs/<int:booking_id>/block", methods=["GET", "POST"])
+def employee_block_job(employee_id: int, booking_id: int):
+    if request.method == "GET":
+        return redirect(url_for("employee_job_details", employee_id=employee_id, booking_id=booking_id))
+    employee = Employee.query.get_or_404(employee_id)
+    booking  = Booking.query.get_or_404(booking_id)
+
+    if booking.assigned_employee != employee_id:
+        flash("Not allowed.", "danger")
+        return redirect(url_for("employee_jobs", employee_id=employee_id))
+
+    reason = (request.form.get("block_reason") or "").strip()
+    if not reason:
+        flash("Please provide a reason before reporting an issue.", "danger")
+        return redirect(url_for("employee_job_details", employee_id=employee_id, booking_id=booking_id))
+
+    try:
+        employee.block_job(booking_id, reason)
+        flash("Issue reported. The manager has been notified and the job is now on hold.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+
+    return redirect(url_for("employee_job_details", employee_id=employee_id, booking_id=booking_id))
+
+
 # --- UC7 ROUTES (Demo, no auth) [Availability record / Availability details / Approving availability logic / Requesting changes] ----------------------------------------------
 
 @app.route("/manager/<int:manager_id>/availability", methods=["GET"])
@@ -287,7 +409,7 @@ def manager_availability(manager_id: int):
     period_label = None
     if period_id:
         from src.scheduling_period import SchedulingPeriod
-        sp = SchedulingPeriod.query.get(period_id)
+        sp = db.session.get(SchedulingPeriod, period_id)
         period_label = sp.label if sp else None
 
     return render_template("manager_availability_list.html",
@@ -547,21 +669,24 @@ def build_period_dict(sp, employee_id):
         display_status  = 'submitted'
         submitted_on    = existing.created_at.strftime('%b %d, %Y') if existing.created_at else '—'
         review_status   = existing.status.replace('_', ' ').title()
+        manager_notes   = existing.manager_notes or None
     else:
         display_status  = sp.status
         submitted_on    = None
         review_status   = None
+        manager_notes   = None
 
     p = {
-        'id':           sp.periodID,
-        'label':        sp.label,
-        'period_range': f"{sp.start_date.strftime('%b %d')} - {sp.end_date.strftime('%b %d, %Y')}",
-        'due_date':     sp.due_date.strftime('%b %d, %Y'),
-        'start':        sp.start_date,
-        'end':          sp.end_date,
-        'status':       display_status,
-        'submitted_on': submitted_on,
-        'review_status':review_status,
+        'id':             sp.periodID,
+        'label':          sp.label,
+        'period_range':   f"{sp.start_date.strftime('%b %d')} - {sp.end_date.strftime('%b %d, %Y')}",
+        'due_date':       sp.due_date.strftime('%b %d, %Y'),
+        'start':          sp.start_date,
+        'end':            sp.end_date,
+        'status':         display_status,
+        'submitted_on':   submitted_on,
+        'review_status':  review_status,
+        'manager_notes':  manager_notes,
     }
 
     # Build date list for dropdowns
@@ -621,8 +746,19 @@ def employee_availability_enter(employee_id: int, period_id: int):
     sp       = SchedulingPeriod.query.get_or_404(period_id)
     period   = build_period_dict(sp, employee_id)
     if not sp.is_open():
-        flash("This scheduling period is not open for submission.", "danger")
-        return redirect(url_for("employee_availabilities", employee_id=employee_id))
+        # Allow entry if the employee has a changes_requested record for this period
+        existing_cr = AvailabilityRecord.query.filter_by(
+            periodID=period_id, employeeID=employee_id, status='changes_requested'
+        ).first()
+        if not existing_cr:
+            flash("This scheduling period is not open for submission.", "danger")
+            return redirect(url_for("employee_availabilities", employee_id=employee_id))
+
+    # Check if this is a resubmission after changes_requested
+    existing_record = AvailabilityRecord.query.filter_by(
+        periodID=period_id, employeeID=employee_id
+    ).first()
+    is_resubmission = existing_record and existing_record.status == 'changes_requested'
 
     # Use session to store slots temporarily
     session_key = f"avail_slots_{employee_id}_{period_id}"
@@ -687,6 +823,8 @@ def employee_availability_enter(employee_id: int, period_id: int):
         period=period,
         slots=display_slots,
         time_options=get_time_options(),
+        is_resubmission=is_resubmission,
+        manager_notes=existing_record.manager_notes if is_resubmission else None,
     )
 
 
@@ -842,6 +980,17 @@ def manager_create_period(manager_id: int):
             flash(f"Error creating period: {str(e)}", "danger")
 
     return render_template("manager_create_period.html", manager=manager)
+
+
+@app.route("/manager/<int:manager_id>/periods/<int:period_id>/open", methods=["POST"])
+def manager_open_period(manager_id: int, period_id: int):
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+    sp = SchedulingPeriod.query.get_or_404(period_id)
+    sp.status = 'open'
+    db.session.commit()
+    flash(f"Period '{sp.label}' is now open for submissions.", "success")
+    return redirect(url_for("manager_periods", manager_id=manager_id))
 
 
 @app.route("/manager/<int:manager_id>/periods/<int:period_id>/close", methods=["POST"])
@@ -1034,6 +1183,224 @@ def manager_cancel_booking(manager_id: int, booking_id: int):
         booking=booking,
     )
 
+
+# --- UC6: MODIFY ADD-ONS ----------------------------------------------
+
+ADD_ON_PRICES = {
+    "UV Protection for Plastics": 25.00,
+    "Detailed Seat Cleaning": 60.00,
+    "Deep Carpet and Floor Cleaning": 70.00,
+    "Water-Repellent Product for Carpets": 30.00,
+    "Leather Seat Conditioner": 40.00,
+    "Xpair Detailing Air Freshener": 10.00,
+    "Odor Neutralizer": 50.00,
+    "Black Surface Restoration (Tires)": 35.00,
+    "Black Surface Restoration (Plastics)": 40.00,
+}
+
+
+@app.route("/manager/<int:manager_id>/bookings/<int:booking_id>/modify-addons", methods=["GET", "POST"])
+def manager_modify_addons(manager_id: int, booking_id: int):
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+
+    manager = Manager.query.get_or_404(manager_id)
+    booking = Booking.query.get_or_404(booking_id)
+
+    # Parse currently selected add-ons from booking_summary
+    current_addons = []
+    if booking.booking_summary and ' with ' in booking.booking_summary:
+        addons_raw = booking.booking_summary.split(' with ')[1].split(' for ')[0]
+        current_addons = [a.strip() for a in addons_raw.split(',')]
+
+    if request.method == 'POST':
+        selected_addons = request.form.getlist('addons')
+        try:
+            # Regenerate booking summary with new add-ons
+            booking.generate_booking_summary(selected_add_ons=selected_addons if selected_addons else None)
+            modified_at = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+            return render_template(
+                'manager_booking_success.html',
+                manager=manager,
+                booking=booking,
+                action='modify_addons',
+                modified_at=modified_at,
+                new_addons=selected_addons,
+            )
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error updating add-ons: {str(e)}", "danger")
+
+    return render_template(
+        'manager_modify_addons.html',
+        manager=manager,
+        booking=booking,
+        all_addons=ADD_ON_PRICES,
+        current_addons=current_addons,
+    )
+
+
+# --- UC6: ASSIGN EMPLOYEE TO BOOKING ----------------------------------------------
+
+@app.route("/manager/<int:manager_id>/bookings/<int:booking_id>/assign-employee", methods=["GET", "POST"])
+def manager_assign_employee(manager_id: int, booking_id: int):
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+
+    manager   = Manager.query.get_or_404(manager_id)
+    booking   = Booking.query.get_or_404(booking_id)
+    employees = Employee.query.order_by(Employee.first_name).all()
+
+    if request.method == 'POST':
+        employee_id = request.form.get('employeeID', type=int)
+        if not employee_id:
+            flash("Please select an employee.", "danger")
+            return redirect(url_for('manager_assign_employee', manager_id=manager_id, booking_id=booking_id))
+        try:
+            manager.assign_employee(booking_id, employee_id)
+            assigned_emp = db.session.get(Employee, employee_id)
+            modified_at  = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+            return render_template(
+                'manager_booking_success.html',
+                manager=manager,
+                booking=booking,
+                action='assign_employee',
+                assigned_employee=assigned_emp,
+                modified_at=modified_at,
+            )
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error assigning employee: {str(e)}", "danger")
+
+    return render_template(
+        'manager_assign_employee.html',
+        manager=manager,
+        booking=booking,
+        employees=employees,
+    )
+
+
+# --- UC6: BLOCK TIME SLOT ----------------------------------------------
+
+@app.route("/manager/<int:manager_id>/block-slot", methods=["GET", "POST"])
+def manager_block_slot(manager_id: int):
+    if session.get('user_role') != 'manager' or session.get('user_id') != manager_id:
+        return redirect(url_for('login'))
+
+    manager = Manager.query.get_or_404(manager_id)
+
+    if request.method == 'POST':
+        date_str  = request.form.get('date', '').strip()
+        start_str = request.form.get('start_time', '').strip()
+        end_str   = request.form.get('end_time', '').strip()
+        reason    = request.form.get('reason', '').strip()
+
+        if not all([date_str, start_str, end_str, reason]):
+            flash("All fields are required.", "danger")
+            return redirect(url_for('manager_block_slot', manager_id=manager_id))
+
+        try:
+            start_dt = datetime.strptime(f"{date_str} {start_str}", "%Y-%m-%d %H:%M")
+            end_dt   = datetime.strptime(f"{date_str} {end_str}",   "%Y-%m-%d %H:%M")
+            if end_dt <= start_dt:
+                flash("End time must be after start time.", "danger")
+                return redirect(url_for('manager_block_slot', manager_id=manager_id))
+
+            slot = manager.block_time_slot(reason, start_dt, end_dt)
+            flash(f"Time slot blocked successfully (Booking #{slot.bookingID}).", "success")
+            return redirect(url_for('manager_bookings', manager_id=manager_id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error blocking slot: {str(e)}", "danger")
+
+    time_options = []
+    t = datetime(2000, 1, 1, 6, 0)
+    while t.hour < 22:
+        time_options.append({'value': t.strftime('%H:%M'), 'label': t.strftime('%I:%M %p')})
+        t += timedelta(minutes=30)
+
+    return render_template(
+        'manager_block_slot.html',
+        manager=manager,
+        time_options=time_options,
+    )
+
+
+# --- UC5: IMAGE UPLOAD (before / after) ----------------------------------------------
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route("/employee/<int:employee_id>/jobs/<int:booking_id>/upload-images", methods=["POST"])
+def employee_upload_images(employee_id: int, booking_id: int):
+    booking = Booking.query.get_or_404(booking_id)
+    if booking.assigned_employee != employee_id:
+        flash("Not allowed.", "danger")
+        return redirect(url_for("employee_jobs", employee_id=employee_id))
+
+    booking_folder = os.path.join(app.config['UPLOAD_FOLDER'], str(booking_id))
+    os.makedirs(booking_folder, exist_ok=True)
+
+    errors = []
+    for field, label in [('before_image', 'before'), ('after_image', 'after')]:
+        file = request.files.get(field)
+        if file and file.filename:
+            if not allowed_file(file.filename):
+                errors.append(f"Invalid format for {label} image. Use PNG, JPG, or JPEG.")
+                continue
+            ext      = file.filename.rsplit('.', 1)[1].lower()
+            filename = secure_filename(f"{label}.{ext}")
+            filepath = os.path.join(booking_folder, filename)
+            file.save(filepath)
+            relative_path = f"/static/uploads/jobs/{booking_id}/{filename}"
+            try:
+                if label == 'before':
+                    booking.upload_before_images(relative_path)
+                else:
+                    booking.upload_after_images(relative_path)
+            except ValueError as ve:
+                errors.append(str(ve))
+
+    if errors:
+        for err in errors:
+            flash(err, "danger")
+    else:
+        flash("Images uploaded successfully.", "success")
+
+    return redirect(url_for("employee_job_details", employee_id=employee_id, booking_id=booking_id))
+
+
+@app.route("/employee/<int:employee_id>/jobs/<int:booking_id>/delete-image", methods=["POST"])
+def employee_delete_image(employee_id: int, booking_id: int):
+    booking = Booking.query.get_or_404(booking_id)
+    if booking.assigned_employee != employee_id:
+        flash("Not allowed.", "danger")
+        return redirect(url_for("employee_jobs", employee_id=employee_id))
+
+    image_type = request.form.get("image_type")  # "before" or "after"
+
+    if image_type == "before" and booking.before_images:
+        # Delete file from disk
+        file_path = os.path.join(os.path.dirname(__file__), booking.before_images.lstrip('/'))
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        booking.before_images = None
+        db.session.commit()
+        flash("Before image deleted.", "success")
+    elif image_type == "after" and booking.after_images:
+        file_path = os.path.join(os.path.dirname(__file__), booking.after_images.lstrip('/'))
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        booking.after_images = None
+        db.session.commit()
+        flash("After image deleted.", "success")
+    else:
+        flash("No image to delete.", "warning")
+
+    return redirect(url_for("employee_job_details", employee_id=employee_id, booking_id=booking_id))
+
+
 # Redirections
 
 @app.route("/demo/employee", methods=["GET"])
@@ -1055,8 +1422,6 @@ def demo_manager_redirect():
 
 
 # --- UC1: AUTH ROUTES (Login / Signup / Logout / Vehicle Info / Edit profile) ---
-
-from werkzeug.security import generate_password_hash
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -1101,7 +1466,7 @@ def login():
                     session['user_role'] = 'employee'
                     session['user_name'] = user.first_name
                     flash("Welcome back to Xpair Detailing!", "success")
-                    return redirect(url_for('employee_jobs', employee_id=user.employeeID))
+                    return redirect(url_for('employee_schedule', employee_id=user.employeeID))
                 flash("Invalid email, password, or department.", "danger")
                 return redirect(url_for('login'))
 
@@ -1120,6 +1485,7 @@ def signup():
         l_name     = request.form.get('last_name', '').strip()
         email      = request.form.get('email', '').strip().lower()
         phone      = request.form.get('phone', '').strip()
+        address    = request.form.get('address', '').strip()
         password   = request.form.get('password', '').strip()
         confirm_pw = request.form.get('confirm_password', '').strip()
         department = request.form.get('department', '')
@@ -1147,7 +1513,7 @@ def signup():
             new_user = Customer(
                 first_name=f_name, last_name=l_name,
                 email=email, phone=phone,
-                password=hashed_pw, role='customer', address=''
+                password=hashed_pw, role='customer', address=address
             )
             new_user.create_profile()
             flash("Account created! Welcome to Xpair Detailing.", "success")
@@ -1173,7 +1539,7 @@ def signup():
                 session['user_id']   = new_user.employeeID
                 session['user_role'] = 'employee'
                 session['user_name'] = new_user.first_name
-                return redirect(url_for('employee_jobs', employee_id=new_user.employeeID))
+                return redirect(url_for('employee_schedule', employee_id=new_user.employeeID))
 
             elif department == 'management':
                 new_user = Manager(
@@ -1262,6 +1628,10 @@ def profile():
         session['user_name'] = f_name
 
         if role == 'customer':
+            address = request.form.get('address', '').strip()
+            if address:
+                user.update_address(address)
+
             make  = request.form.get('make', '').strip()
             model = request.form.get('v_model', '').strip()
             year  = request.form.get('year', '').strip()
@@ -1271,7 +1641,7 @@ def profile():
             if make and model and year and plate:
                 try:
                     if user.vehicle_id:
-                        vehicle = Vehicle.query.get(user.vehicle_id)
+                        vehicle = db.session.get(Vehicle, user.vehicle_id)
                         if vehicle:
                             vehicle.update_make(make)
                             vehicle.update_model(model)
@@ -1309,7 +1679,7 @@ def profile():
         flash("Profile updated successfully.", "success")
 
         if role == 'employee':
-            return redirect(url_for('employee_jobs', employee_id=user.employeeID))
+            return redirect(url_for('employee_schedule', employee_id=user.employeeID))
         elif role == 'manager':
             return redirect(url_for('manager_availability', manager_id=user.managerID))
         else:
@@ -1317,7 +1687,7 @@ def profile():
 
     vehicle = None
     if role == 'customer' and user.vehicle_id:
-        vehicle = Vehicle.query.get(user.vehicle_id)
+        vehicle = db.session.get(Vehicle, user.vehicle_id)
 
     return render_template('edit_profile.html', user=user, vehicle=vehicle, role=role)
 

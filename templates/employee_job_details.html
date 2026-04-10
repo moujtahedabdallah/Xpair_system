@@ -6,8 +6,8 @@
 {% block content %}
 <div class="container py-5">
   <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
-     href="{{ url_for('employee_jobs', employee_id=employee.employeeID) }}">
-    <i class="bi bi-arrow-left me-2"></i> Back to Jobs
+     href="{{ url_for('employee_schedule', employee_id=employee.employeeID) }}">
+    <i class="bi bi-arrow-left me-2"></i> Back to Schedule
   </a>
 
   <div class="d-flex justify-content-between align-items-end mb-4">
@@ -24,44 +24,160 @@
         <div class="row g-3">
           <div class="col-md-6">
             <div class="text-muted small fw-bold text-uppercase">Date</div>
-            <div class="fw-bold">{{ booking.date }}</div>
+            <div class="fw-bold">{{ booking.date.strftime('%A, %B %d, %Y') }}</div>
           </div>
           <div class="col-md-6">
             <div class="text-muted small fw-bold text-uppercase">Time</div>
-            <div class="fw-bold">{{ booking.start_time.strftime('%I:%M %p') }} - {{ booking.end_time.strftime('%I:%M %p') }}</div>
+            <div class="fw-bold">{{ booking.start_time.strftime('%I:%M %p') }} – {{ booking.end_time.strftime('%I:%M %p') }}</div>
           </div>
           <div class="col-md-6">
-            <div class="text-muted small fw-bold text-uppercase">Booking Status</div>
-            <div class="fw-bold">{{ booking.booking_status }}</div>
+            <div class="text-muted small fw-bold text-uppercase">Status</div>
+            <div class="fw-bold">
+              {% if booking.booking_status == 'in_progress' %}
+                <span class="badge bg-warning text-dark">● In Progress</span>
+              {% elif booking.booking_status == 'confirmed' %}
+                <span class="badge bg-success">Confirmed</span>
+              {% elif booking.booking_status == 'completed' %}
+                <span class="badge bg-success-subtle text-success">Completed</span>
+              {% elif booking.booking_status == 'cancelled' %}
+                <span class="badge bg-secondary">Cancelled</span>
+              {% elif booking.booking_status == 'on_hold' %}
+                <span class="badge bg-danger-subtle text-danger">On Hold</span>
+              {% else %}
+                <span class="badge bg-light text-dark border">{{ booking.booking_status | capitalize }}</span>
+              {% endif %}
+            </div>
           </div>
           <div class="col-md-6">
-            <div class="text-muted small fw-bold text-uppercase">Blocked?</div>
-            <div class="fw-bold">{{ "Yes" if booking.is_blocked else "No" }}</div>
+            <div class="text-muted small fw-bold text-uppercase">Duration</div>
+            <div class="fw-bold">{{ booking.service.service_duration }} min</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card xpair-card p-4 mb-4">
+        <h5 class="fw-bold mb-3">Service & Customer</h5>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Service</div>
+            <div class="fw-bold">{{ booking.service.service_name if booking.service else '—' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Customer</div>
+            <div class="fw-bold">
+              {{ (booking.customer.first_name ~ ' ' ~ booking.customer.last_name) if booking.customer else '—' }}
+            </div>
+            {% if booking.customer and booking.customer.phone %}
+            <div class="text-muted small mt-1">
+              <i class="bi bi-telephone me-1"></i>{{ booking.customer.phone }}
+            </div>
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Vehicle</div>
+            <div class="fw-bold">
+              {% if booking.vehicle %}
+                {{ booking.vehicle.year }} {{ booking.vehicle.make }} {{ booking.vehicle.model }}
+              {% else %}—{% endif %}
+            </div>
+            {% if booking.vehicle %}
+            <div class="text-muted small">{{ booking.vehicle.size | capitalize }} · {{ booking.vehicle.plate }}</div>
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small fw-bold text-uppercase">Service Address</div>
+            {% if booking.service_address %}
+              <div class="fw-bold">{{ booking.service_address }}</div>
+              <a href="https://maps.google.com/?q={{ booking.service_address | urlencode }}"
+                 target="_blank" class="small text-xpair">
+                <i class="bi bi-map me-1"></i>Open in Maps
+              </a>
+            {% else %}
+              <div class="text-muted fst-italic small">No address provided</div>
+            {% endif %}
           </div>
         </div>
       </div>
 
       <div class="card xpair-card p-4 mb-4">
         <h5 class="fw-bold mb-3">Update Status</h5>
+
+        {% if booking.booking_status == 'on_hold' %}
+        <div class="alert alert-warning small mb-3 py-2">
+          <i class="bi bi-lock me-1"></i> This job is on hold — status cannot be changed until the manager resolves the issue.
+        </div>
+        {% endif %}
+
         <form method="POST"
               action="{{ url_for('employee_update_job_status', employee_id=employee.employeeID, booking_id=booking.bookingID) }}">
           <div class="row g-3 align-items-end">
             <div class="col-md-8">
               <label class="form-label fw-bold small text-muted">Select status</label>
-              <select name="booking_status" class="form-select">
-                {% for s in ['assigned','in_progress','on_hold','completed','cancelled'] %}
-                  <option value="{{ s }}" {% if booking.booking_status == s %}selected{% endif %}>
-                    {{ s }}
+              <select name="booking_status" class="form-select" {% if booking.booking_status in ['on_hold', 'completed', 'cancelled'] %}disabled{% endif %}>
+                {% set status_labels = [
+                  ('assigned',    'Assigned'),
+                  ('in_progress', 'In Progress'),
+                  ('on_hold',     'On Hold'),
+                  ('completed',   'Completed'),
+                  ('cancelled',   'Cancelled')
+                ] %}
+                {% for value, label in status_labels %}
+                  <option value="{{ value }}" {% if booking.booking_status == value %}selected{% endif %}>
+                    {{ label }}
                   </option>
                 {% endfor %}
               </select>
-              <div class="form-text">Matches Booking.validate_job_status() allowed values.</div>
             </div>
             <div class="col-md-4">
-              <button class="btn btn-xpair w-100 py-2 fw-bold">Save Status</button>
+              <button class="btn btn-xpair w-100 py-2 fw-bold"
+                      {% if booking.booking_status in ['on_hold', 'completed', 'cancelled'] %}disabled{% endif %}>
+                Save Status
+              </button>
             </div>
           </div>
         </form>
+
+        <hr class="my-3">
+
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="fw-bold small mb-1">Can't proceed with this job?</div>
+            <div class="text-muted small">Flag it as on hold and notify the manager with a reason.</div>
+          </div>
+          {% if booking.booking_status not in ['on_hold', 'completed', 'cancelled'] %}
+          <button class="btn btn-sm btn-outline-danger fw-bold px-3 ms-3 text-nowrap"
+                  data-bs-toggle="collapse" data-bs-target="#reportIssueForm">
+            <i class="bi bi-flag me-1"></i> Flag Job
+          </button>
+          {% else %}
+          <span class="badge bg-danger-subtle text-danger ms-3">
+            <i class="bi bi-flag-fill me-1"></i>
+            {% if booking.booking_status == 'on_hold' %}Flagged{% else %}Closed{% endif %}
+          </span>
+          {% endif %}
+        </div>
+
+        {% if booking.booking_status == 'on_hold' and booking.block_reason %}
+        <div class="mt-3 p-3 rounded-3" style="background:#FEF2F2; border:1px solid #FECACA;">
+          <div class="small fw-bold text-danger mb-1"><i class="bi bi-exclamation-triangle me-1"></i>Issue Reported — Awaiting Manager Review</div>
+          <div class="small text-muted">{{ booking.block_reason }}</div>
+        </div>
+        {% endif %}
+
+        {% if booking.booking_status not in ['on_hold', 'completed', 'cancelled'] %}
+        <div class="collapse mt-3" id="reportIssueForm">
+          <form method="POST"
+                action="{{ url_for('employee_block_job', employee_id=employee.employeeID, booking_id=booking.bookingID) }}">
+            <textarea class="form-control bg-light border-0 mb-3" rows="3" name="block_reason"
+                      placeholder="Describe the issue (required)..." required></textarea>
+            <button type="submit" class="btn btn-danger fw-bold px-4"
+                    onclick="return confirm('This will place the job on hold and notify the manager. Continue?')">
+              <i class="bi bi-exclamation-triangle me-2"></i>Report Issue & Notify Manager
+            </button>
+          </form>
+        </div>
+        {% endif %}
+
       </div>
 
       <div class="card xpair-card p-4">
@@ -75,23 +191,73 @@
           </div>
         </form>
       </div>
+
     </div>
 
     <div class="col-lg-4">
       <div class="card xpair-card p-4 sticky-top" style="top: 100px;">
-        <h5 class="fw-bold mb-3">Uploads (placeholder)</h5>
-        <div class="text-muted small mb-3">
-          Not implementing actual file upload yet (portal/auth later).
+        <h5 class="fw-bold mb-3">Job Images</h5>
+
+        <!-- Current images -->
+        <div class="mb-3">
+          <div class="text-muted small fw-bold text-uppercase mb-1">Before</div>
+          {% if booking.before_images %}
+            <img src="{{ booking.before_images }}" alt="Before"
+                 class="img-fluid rounded-3 mb-2" style="max-height:140px; object-fit:cover; width:100%;">
+            <form method="POST"
+                  action="{{ url_for('employee_delete_image', employee_id=employee.employeeID, booking_id=booking.bookingID) }}"
+                  onsubmit="return confirm('Delete before image?');">
+              <input type="hidden" name="image_type" value="before">
+              <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                <i class="bi bi-trash me-1"></i> Delete Before Image
+              </button>
+            </form>
+          {% else %}
+            <div class="text-muted small fst-italic">No image uploaded</div>
+          {% endif %}
         </div>
 
-        <div class="mb-3">
-          <div class="text-muted small fw-bold text-uppercase">Before Images</div>
-          <div class="fw-bold">{{ booking.before_images or "—" }}</div>
+        <div class="mb-4">
+          <div class="text-muted small fw-bold text-uppercase mb-1">After</div>
+          {% if booking.after_images %}
+            <img src="{{ booking.after_images }}" alt="After"
+                 class="img-fluid rounded-3 mb-2" style="max-height:140px; object-fit:cover; width:100%;">
+            <form method="POST"
+                  action="{{ url_for('employee_delete_image', employee_id=employee.employeeID, booking_id=booking.bookingID) }}"
+                  onsubmit="return confirm('Delete after image?');">
+              <input type="hidden" name="image_type" value="after">
+              <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                <i class="bi bi-trash me-1"></i> Delete After Image
+              </button>
+            </form>
+          {% else %}
+            <div class="text-muted small fst-italic">No image uploaded</div>
+          {% endif %}
         </div>
-        <div class="mb-3">
-          <div class="text-muted small fw-bold text-uppercase">After Images</div>
-          <div class="fw-bold">{{ booking.after_images or "—" }}</div>
-        </div>
+
+        <hr class="my-3">
+
+        <!-- Upload form -->
+        <form method="POST"
+              action="{{ url_for('employee_upload_images', employee_id=employee.employeeID, booking_id=booking.bookingID) }}"
+              enctype="multipart/form-data">
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Upload Before Image</label>
+            <input type="file" name="before_image" accept=".png,.jpg,.jpeg"
+                   class="form-control form-control-sm bg-light border-0">
+            <div class="form-text">PNG, JPG, or JPEG only.</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Upload After Image</label>
+            <input type="file" name="after_image" accept=".png,.jpg,.jpeg"
+                   class="form-control form-control-sm bg-light border-0">
+            <div class="form-text">PNG, JPG, or JPEG only.</div>
+          </div>
+
+          <button type="submit" class="btn btn-dark w-100 fw-bold">Upload Images</button>
+        </form>
       </div>
     </div>
   </div>

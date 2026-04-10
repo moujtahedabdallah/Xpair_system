@@ -21,10 +21,12 @@
   <div class="card xpair-card p-4 mb-4">
     <h6 class="fw-bold mb-3">Current Booking Details</h6>
     <div class="row g-4">
+
       <div class="col-md-6">
         <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Booking ID</div>
         <div class="fw-bold">BK-{{ booking.bookingID }}</div>
       </div>
+
       <div class="col-md-6">
         <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Customer</div>
         {% if booking.customer %}
@@ -33,11 +35,13 @@
         <div class="text-muted small">{{ booking.customer.phone or '—' }}</div>
         {% else %}<div class="fw-bold">Guest</div>{% endif %}
       </div>
+
       <div class="col-md-6">
         <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Service</div>
         <div class="fw-bold">{{ booking.service.service_name if booking.service else '—' }}</div>
         <div class="text-muted small">${{ "%.2f"|format(booking.service.base_price) if booking.service else '—' }}</div>
       </div>
+
       <div class="col-md-6">
         <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Vehicle</div>
         <div class="fw-bold">
@@ -45,14 +49,41 @@
           {% else %}—{% endif %}
         </div>
       </div>
+
       <div class="col-md-6">
         <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Appointment Date</div>
         <div class="fw-bold">{{ booking.date.strftime('%B %d, %Y') }}</div>
       </div>
+
       <div class="col-md-6">
         <div class="text-muted small fw-bold text-uppercase" style="font-size:0.68rem; letter-spacing:0.05em;">Appointment Time</div>
         <div class="fw-bold">{{ booking.start_time.strftime('%I:%M %p') }} - {{ booking.end_time.strftime('%I:%M %p') }}</div>
       </div>
+
+      <!-- Add-ons -->
+      <div class="col-12">
+        <div class="text-muted small fw-bold text-uppercase mb-1" style="font-size:0.68rem; letter-spacing:0.05em;">Add-ons</div>
+        {% if booking.booking_summary and ' with ' in booking.booking_summary %}
+          {% set addons_raw = booking.booking_summary.split(' with ')[1].split(' for ')[0] %}
+          <div class="d-flex flex-wrap gap-2">
+            {% for addon in addons_raw.split(', ') %}
+              <span class="badge rounded-pill px-3 py-2 bg-secondary-subtle text-secondary fw-normal" style="font-size:0.78rem;">
+                {{ addon }}
+              </span>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-muted small fst-italic">No add-ons selected</div>
+        {% endif %}
+      </div>
+
+      {% if booking.job_notes %}
+      <div class="col-12">
+        <div class="text-muted small fw-bold text-uppercase mb-1" style="font-size:0.68rem; letter-spacing:0.05em;">Job Notes</div>
+        <div class="small text-dark">{{ booking.job_notes }}</div>
+      </div>
+      {% endif %}
+
     </div>
   </div>
 
@@ -62,6 +93,7 @@
     <p class="text-muted small mb-4">Choose what you would like to modify for this booking</p>
 
     <div class="row g-3">
+
       <!-- Reschedule -->
       <div class="col-md-4">
         <a href="{{ url_for('manager_reschedule_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
@@ -94,6 +126,38 @@
         </a>
       </div>
 
+      <!-- Modify Add-ons -->
+      <div class="col-md-4">
+        <a href="{{ url_for('manager_modify_addons', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
+           class="text-decoration-none">
+          <div class="p-4 rounded-3 border h-100" style="border-color: var(--xpair-border) !important; transition: all 0.2s;"
+               onmouseover="this.style.borderColor='#10B981'; this.style.background='#ECFDF5';"
+               onmouseout="this.style.borderColor='var(--xpair-border)'; this.style.background='white';">
+            <div style="width:40px; height:40px; border-radius:10px; background:#ECFDF5; display:flex; align-items:center; justify-content:center; margin-bottom:12px;">
+              <i class="bi bi-stars" style="color:#10B981; font-size:1.1rem;"></i>
+            </div>
+            <div class="fw-bold mb-1 text-dark">Modify Add-ons</div>
+            <div class="small text-muted">Add or remove service add-ons</div>
+          </div>
+        </a>
+      </div>
+
+      <!-- Assign Employee -->
+      <div class="col-md-4">
+        <a href="{{ url_for('manager_assign_employee', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
+           class="text-decoration-none">
+          <div class="p-4 rounded-3 border h-100" style="border-color: var(--xpair-border) !important; transition: all 0.2s;"
+               onmouseover="this.style.borderColor='#8B5CF6'; this.style.background='#F5F3FF';"
+               onmouseout="this.style.borderColor='var(--xpair-border)'; this.style.background='white';">
+            <div style="width:40px; height:40px; border-radius:10px; background:#F5F3FF; display:flex; align-items:center; justify-content:center; margin-bottom:12px;">
+              <i class="bi bi-person-check" style="color:#8B5CF6; font-size:1.1rem;"></i>
+            </div>
+            <div class="fw-bold mb-1 text-dark">Assign Employee</div>
+            <div class="small text-muted">Assign a detailer to this booking</div>
+          </div>
+        </a>
+      </div>
+
       <!-- Cancel -->
       <div class="col-md-4">
         <a href="{{ url_for('manager_cancel_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
@@ -109,6 +173,7 @@
           </div>
         </a>
       </div>
+
     </div>
   </div>
 

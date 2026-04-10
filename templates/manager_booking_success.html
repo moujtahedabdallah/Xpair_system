@@ -24,11 +24,15 @@
     <h2 class="fw-bold text-center mb-2">
       {% if action == 'reschedule' %}Booking Rescheduled Successfully
       {% elif action == 'change_service' %}Booking Updated Successfully
+      {% elif action == 'assign_employee' %}Employee Assigned Successfully
+      {% elif action == 'modify_addons' %}Add-ons Updated Successfully
       {% else %}Booking Cancelled Successfully
       {% endif %}
     </h2>
     <p class="text-center text-muted mb-4">
       {% if action == 'cancel' %}The booking has been cancelled and all parties have been notified.
+      {% elif action == 'assign_employee' %}The employee has been assigned and notified of their job.
+      {% elif action == 'modify_addons' %}The booking add-ons have been updated and the summary regenerated.
       {% else %}The appointment has been updated and notifications have been sent.
       {% endif %}
     </p>
@@ -59,6 +63,20 @@
       <div class="d-flex justify-content-between py-2 border-bottom">
         <span class="text-muted small">New Service</span>
         <span class="fw-bold small">{{ new_service }}</span>
+      </div>
+      {% elif action == 'assign_employee' %}
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted small">Assigned Employee</span>
+        <span class="fw-bold small">
+          {% if assigned_employee %}{{ assigned_employee.first_name }} {{ assigned_employee.last_name }}{% else %}—{% endif %}
+        </span>
+      </div>
+      {% elif action == 'modify_addons' %}
+      <div class="d-flex justify-content-between py-2 border-bottom">
+        <span class="text-muted small">Add-ons</span>
+        <span class="fw-bold small">
+          {% if new_addons %}{{ new_addons | join(', ') }}{% else %}None{% endif %}
+        </span>
       </div>
       {% elif action == 'cancel' %}
       <div class="d-flex justify-content-between py-2 border-bottom">
@@ -112,9 +130,9 @@
 
     <!-- CTA -->
     <div class="text-center mb-3">
-      <a href="{{ url_for('manager_dashboard', manager_id=manager.managerID) }}"
+      <a href="{{ url_for('manager_bookings', manager_id=manager.managerID) }}"
          class="btn btn-xpair fw-bold px-5 py-3 rounded-pill">
-        Return to Dashboard
+        Return to Bookings
       </a>
     </div>
     <p class="text-center text-muted small">

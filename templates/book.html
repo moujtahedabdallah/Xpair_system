@@ -132,6 +132,22 @@
                     </div>
                 </div>
 
+                <h5 class="fw-bold mb-3">Service Address</h5>
+                <div class="card xpair-card p-4 mb-5">
+                    <label class="form-label fw-bold small">Where should we come to detail your vehicle?</label>
+                    <input type="text" name="service_address" class="form-control bg-light border-0 py-2"
+                           placeholder="e.g. 123 Maple Ave, Montreal, QC H3Z 2Y7"
+                           value="{{ customer.address if customer and customer.address else '' }}"
+                           required>
+                    <div class="form-text mt-2">
+                        {% if customer and customer.address %}
+                        Pre-filled from your profile — edit if you want service at a different location today.
+                        {% else %}
+                        Enter the address where you'd like the service performed (home, office, etc.)
+                        {% endif %}
+                    </div>
+                </div>
+
             </div>
 
             <div class="col-lg-4">

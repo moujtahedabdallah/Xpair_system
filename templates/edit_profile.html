@@ -67,6 +67,16 @@
                            placeholder="(555) 123-4567">
                 </div>
 
+                {% if role == 'customer' %}
+                <div class="mb-4">
+                    <label class="form-label fw-bold small">Home Address <span class="text-muted fw-normal">(pre-fills your booking form)</span></label>
+                    <input type="text" name="address"
+                           class="form-control bg-light border-0 py-2"
+                           value="{{ user.address or '' }}"
+                           placeholder="e.g. 123 Maple Ave, Montreal, QC H3Z 2Y7">
+                </div>
+                {% endif %}
+
                 <hr class="my-4">
 
                 <!-- Vehicle Information -->

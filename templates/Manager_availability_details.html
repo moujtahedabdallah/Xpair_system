@@ -25,29 +25,32 @@
         <div class="row g-3">
           <div class="col-md-6">
             <div class="text-muted small fw-bold text-uppercase">Employee</div>
-            <div class="fw-bold">{{ submission.employeeID }}</div>
+            <div class="fw-bold">
+              {{ (submission.employee.first_name ~ ' ' ~ submission.employee.last_name) if submission.employee else submission.employeeID }}
+            </div>
+            {% if submission.employee and submission.employee.phone %}
+            <div class="text-muted small"><i class="bi bi-telephone me-1"></i>{{ submission.employee.phone }}</div>
+            {% endif %}
           </div>
           <div class="col-md-6">
             <div class="text-muted small fw-bold text-uppercase">Period</div>
-            <div class="fw-bold">{{ submission.periodID }}</div>
+            <div class="fw-bold">{{ submission.period.label if submission.period else 'Period ' ~ submission.periodID }}</div>
           </div>
           <div class="col-md-6">
-            <div class="text-muted small fw-bold text-uppercase">Day</div>
-            <div class="fw-bold">{{ submission.day }}</div>
+            <div class="text-muted small fw-bold text-uppercase">Date</div>
+            <div class="fw-bold">{{ submission.start_time.strftime('%A, %B %d, %Y') }}</div>
           </div>
           <div class="col-md-6">
             <div class="text-muted small fw-bold text-uppercase">Time</div>
-            <div class="fw-bold">
-              {{ submission.start_time.strftime('%I:%M %p') }} - {{ submission.end_time.strftime('%I:%M %p') }}
-            </div>
+            <div class="fw-bold">{{ submission.start_time.strftime('%I:%M %p') }} – {{ submission.end_time.strftime('%I:%M %p') }}</div>
           </div>
           <div class="col-md-6">
             <div class="text-muted small fw-bold text-uppercase">Status</div>
-            <div class="fw-bold">{{ submission.status }}</div>
+            <div class="fw-bold">{{ submission.status | replace('_', ' ') | title }}</div>
           </div>
           <div class="col-md-6">
             <div class="text-muted small fw-bold text-uppercase">Reviewed At</div>
-            <div class="fw-bold">{{ submission.reviewed_at or "—" }}</div>
+            <div class="fw-bold">{{ submission.reviewed_at.strftime('%b %d, %Y') if submission.reviewed_at else "—" }}</div>
           </div>
         </div>
 

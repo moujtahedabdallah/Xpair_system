@@ -363,7 +363,7 @@
                 <div id="chart-revenue">
                     <div class="bar-wrap">
                         {% for item in chart_data.monthly %}
-                        <div class="bar-col {% if item.active %}selected{% endif %}"
+                        <div class="bar-col"
                              data-month="{{ item.month }}"
                              data-revenue="{{ item.value }}"
                              data-bookings="{{ item.booking_count }}"
@@ -389,7 +389,7 @@
                 <div id="chart-bookings" style="display:none;">
                     <div class="bar-wrap">
                         {% for item in chart_data.monthly %}
-                        <div class="bar-col {% if item.active %}selected{% endif %}"
+                        <div class="bar-col"
                              data-month="{{ item.month }}"
                              data-revenue="{{ item.value }}"
                              data-bookings="{{ item.booking_count }}"

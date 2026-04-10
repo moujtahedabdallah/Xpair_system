@@ -11,8 +11,16 @@
     <i class="bi bi-arrow-left me-2"></i> Back to Dashboard
   </a>
 
-  <h2 class="fw-bold mb-1">Modify Bookings</h2>
-  <p class="text-muted mb-4">Search for customer bookings to modify, reschedule, or cancel</p>
+  <div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">Modify Bookings</h2>
+      <p class="text-muted mb-0">Search for customer bookings to modify, reschedule, or cancel</p>
+    </div>
+    <a href="{{ url_for('manager_block_slot', manager_id=manager.managerID) }}"
+       class="btn btn-outline-dark fw-bold d-flex align-items-center gap-2">
+      <i class="bi bi-slash-circle"></i> Block Time Slot
+    </a>
+  </div>
 
   <!-- Search -->
   <div class="card xpair-card p-4 mb-4">
@@ -41,8 +49,8 @@
   </div>
 
   <!-- Booking List -->
-  <div class="card xpair-card p-0 overflow-hidden mb-4">
-    <div class="p-4 border-bottom bg-white">
+  <div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
       <h5 class="fw-bold mb-0">
         {% if search_q %}Search Results{% else %}All Bookings{% endif %}
         <span class="text-muted fw-normal small ms-2">({{ bookings|length }})</span>
@@ -50,13 +58,18 @@
     </div>
 
     {% if bookings %}
+    <div class="d-flex flex-column gap-2">
     {% for b in bookings %}
-    <a class="text-decoration-none text-dark"
-       href="{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=b.bookingID) }}">
-      <div class="p-4 border-bottom bg-white booking-row" style="transition: background 0.15s;">
-        <div class="d-flex justify-content-between align-items-start mb-2">
-          <div class="d-flex align-items-center gap-2">
-            <span class="fw-bold">
+
+      <!-- Row wrapper: clicking anywhere except the assign link goes to modify page -->
+      <div class="booking-row bg-white rounded-3 border px-4 py-3 position-relative"
+           style="border-color: var(--xpair-border); cursor: pointer;"
+           onclick="window.location='{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=b.bookingID) }}'">
+
+        <!-- Top line: name · BK-ID · badge + chevron -->
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="fw-bold fs-6">
               {% if b.customer %}{{ b.customer.first_name }} {{ b.customer.last_name }}{% else %}Guest{% endif %}
             </span>
             <span class="text-muted small">· BK-{{ b.bookingID }}</span>
@@ -73,38 +86,63 @@
           <i class="bi bi-chevron-right text-muted"></i>
         </div>
 
-        <div class="row g-3 small text-muted">
-          <div class="col-md-3">
-            <div class="fw-bold text-uppercase" style="font-size:0.65rem; letter-spacing:0.05em;">Contact</div>
+        <!-- Detail columns -->
+        <div class="row g-2" style="font-size: 0.82rem;">
+
+          <div class="col-6 col-md-2">
+            <div class="text-muted fw-semibold text-uppercase mb-1" style="font-size:0.65rem; letter-spacing:0.04em;">Contact</div>
             {% if b.customer %}
-            <div>{{ b.customer.phone or '—' }}</div>
-            <div>{{ b.customer.email }}</div>
-            {% else %}<div>—</div>{% endif %}
+            <div class="text-dark">{{ b.customer.phone or '—' }}</div>
+            <div class="text-muted">{{ b.customer.email }}</div>
+            {% else %}<div class="text-muted">—</div>{% endif %}
           </div>
-          <div class="col-md-3">
-            <div class="fw-bold text-uppercase" style="font-size:0.65rem; letter-spacing:0.05em;">Service</div>
-            <div class="text-dark fw-bold">{{ b.service.service_name if b.service else '—' }}</div>
-            <div>${{ "%.0f"|format(b.service.base_price) if b.service else '—' }}</div>
+
+          <div class="col-6 col-md-3">
+            <div class="text-muted fw-semibold text-uppercase mb-1" style="font-size:0.65rem; letter-spacing:0.04em;">Service</div>
+            <div class="text-dark fw-semibold">{{ b.service.service_name if b.service else '—' }}</div>
+            <div class="text-muted">${{ "%.0f"|format(b.service.base_price) if b.service else '—' }}</div>
           </div>
-          <div class="col-md-3">
-            <div class="fw-bold text-uppercase" style="font-size:0.65rem; letter-spacing:0.05em;">Vehicle</div>
-            <div class="text-dark fw-bold">
+
+          <div class="col-6 col-md-2">
+            <div class="text-muted fw-semibold text-uppercase mb-1" style="font-size:0.65rem; letter-spacing:0.04em;">Vehicle</div>
+            <div class="text-dark fw-semibold">
               {% if b.vehicle %}{{ b.vehicle.year }} {{ b.vehicle.make }} {{ b.vehicle.model }}
               {% else %}—{% endif %}
             </div>
           </div>
-          <div class="col-md-3">
-            <div class="fw-bold text-uppercase" style="font-size:0.65rem; letter-spacing:0.05em;">Appointment</div>
-            <div class="text-dark fw-bold">{{ b.date.strftime('%B %d, %Y') }}</div>
-            <div>{{ b.start_time.strftime('%I:%M %p') }} - {{ b.end_time.strftime('%I:%M %p') }}</div>
+
+          <div class="col-6 col-md-3">
+            <div class="text-muted fw-semibold text-uppercase mb-1" style="font-size:0.65rem; letter-spacing:0.04em;">Appointment</div>
+            <div class="text-dark fw-semibold">{{ b.date.strftime('%B %d, %Y') }}</div>
+            <div class="text-muted">{{ b.start_time.strftime('%I:%M %p') }} - {{ b.end_time.strftime('%I:%M %p') }}</div>
           </div>
+
+          <div class="col-6 col-md-2">
+            <div class="text-muted fw-semibold text-uppercase mb-1" style="font-size:0.65rem; letter-spacing:0.04em;">Assigned To</div>
+            {% if b.employee %}
+              <a href="{{ url_for('manager_assign_employee', manager_id=manager.managerID, booking_id=b.bookingID) }}"
+                 class="text-dark fw-semibold text-decoration-none assign-link"
+                 onclick="event.stopPropagation();">
+                {{ b.employee.first_name }} {{ b.employee.last_name }}
+              </a>
+            {% else %}
+              <a href="{{ url_for('manager_assign_employee', manager_id=manager.managerID, booking_id=b.bookingID) }}"
+                 class="fw-semibold text-decoration-none assign-link"
+                 style="color: #D82242;"
+                 onclick="event.stopPropagation();">
+                <i class="bi bi-plus-circle me-1"></i>Unassigned
+              </a>
+            {% endif %}
+          </div>
+
         </div>
       </div>
-    </a>
+
     {% endfor %}
+    </div>
 
     {% else %}
-    <div class="p-5 text-center text-muted">
+    <div class="bg-white rounded-3 border p-5 text-center text-muted" style="border-color: var(--xpair-border);">
       <i class="bi bi-search mb-2" style="font-size:1.5rem;"></i>
       <p class="mb-0">No bookings found{% if search_q %} for "{{ search_q }}"{% endif %}.</p>
     </div>
@@ -128,6 +166,8 @@
 </div>
 
 <style>
-  .booking-row:hover { background: #F9FAFB !important; }
+  .booking-row { transition: background 0.15s, box-shadow 0.15s; }
+  .booking-row:hover { background: #F9FAFB !important; box-shadow: 0 2px 12px rgba(0,0,0,0.07) !important; }
+  .assign-link:hover { text-decoration: underline !important; }
 </style>
 {% endblock %}

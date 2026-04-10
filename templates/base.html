@@ -145,7 +145,7 @@
     <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top py-3 shadow-sm">
         <div class="container">
             <a class="navbar-brand fw-bold fs-4" href="
-                {% if session.get('user_role') == 'employee' %}{{ url_for('employee_jobs', employee_id=session.get('user_id')) }}
+                {% if session.get('user_role') == 'employee' %}{{ url_for('employee_schedule', employee_id=session.get('user_id')) }}
                 {% elif session.get('user_role') == 'manager' %}{{ url_for('manager_dashboard', manager_id=session.get('user_id')) }}
                 {% else %}{{ url_for('home') }}{% endif %}
             ">
@@ -159,13 +159,11 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center fw-bold">
                     <li class="nav-item me-3">
-                        {% if session.get('user_role') == 'employee' %}
-                            <a class="nav-link text-dark" href="{{ url_for('employee_jobs', employee_id=session.get('user_id')) }}">Employee Dashboard</a>
-                        {% elif session.get('user_role') == 'manager' %}
+                        {% if session.get('user_role') == 'manager' %}
                             <a class="nav-link text-dark" href="{{ url_for('manager_dashboard', manager_id=session.get('user_id')) }}">
                                 <i class="bi bi-speedometer2 me-1"></i> Dashboard
                             </a>
-                        {% else %}
+                        {% elif session.get('user_role') != 'employee' %}
                             <a class="nav-link text-dark" href="{{ url_for('home') }}">Home</a>
                         {% endif %}
                     </li>
@@ -179,6 +177,24 @@
                     <li class="nav-item me-3">
                         <a class="nav-link text-dark" href="{{ url_for('manager_bookings', manager_id=session.get('user_id')) }}">
                             <i class="bi bi-pencil-square me-1"></i> Modify Bookings
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if session.get('user_role') == 'employee' %}
+                    <li class="nav-item me-3">
+                        <a class="nav-link text-dark" href="{{ url_for('employee_schedule', employee_id=session.get('user_id')) }}">
+                            <i class="bi bi-calendar-check me-1"></i> My Schedule
+                        </a>
+                    </li>
+                    <li class="nav-item me-3">
+                        <a class="nav-link text-dark" href="{{ url_for('employee_job_history', employee_id=session.get('user_id')) }}">
+                            <i class="bi bi-clock-history me-1"></i> History
+                        </a>
+                    </li>
+                    <li class="nav-item me-3">
+                        <a class="nav-link text-dark" href="{{ url_for('employee_availabilities', employee_id=session.get('user_id')) }}">
+                            <i class="bi bi-calendar3 me-1"></i> Availabilities
                         </a>
                     </li>
                     {% endif %}

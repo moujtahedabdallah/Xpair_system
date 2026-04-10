@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Assign Employee{% endblock %}
+
+<!-- UC6: MANAGER ASSIGN EMPLOYEE -->
+
+{% block content %}
+<div class="container py-5" style="max-width: 860px;">
+
+  <a class="text-muted text-decoration-none d-inline-flex align-items-center mb-4"
+     href="{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}">
+    <i class="bi bi-arrow-left me-2"></i> Back to Modify Options
+  </a>
+
+  <h2 class="fw-bold mb-1">Assign Employee</h2>
+  <p class="text-muted mb-4">
+    Select an employee to assign to this booking for
+    {% if booking.customer %}{{ booking.customer.first_name }} {{ booking.customer.last_name }}{% else %}Guest{% endif %}
+  </p>
+
+  <!-- Current Booking Details -->
+  <div class="card xpair-card p-4 mb-4">
+    <h6 class="fw-bold mb-3">Current Booking Details</h6>
+    <div class="row g-3 small">
+      <div class="col-md-3">
+        <div class="text-muted text-uppercase" style="font-size:0.65rem;">Booking ID</div>
+        <div class="fw-bold">BK-{{ booking.bookingID }}</div>
+      </div>
+      <div class="col-md-3">
+        <div class="text-muted text-uppercase" style="font-size:0.65rem;">Service</div>
+        <div class="fw-bold">{{ booking.service.service_name if booking.service else '—' }}</div>
+      </div>
+      <div class="col-md-3">
+        <div class="text-muted text-uppercase" style="font-size:0.65rem;">Date</div>
+        <div class="fw-bold">{{ booking.date.strftime('%B %d, %Y') }}</div>
+      </div>
+      <div class="col-md-3">
+        <div class="text-muted text-uppercase" style="font-size:0.65rem;">Currently Assigned</div>
+        <div class="fw-bold">
+          {% if booking.employee %}
+            {{ booking.employee.first_name }} {{ booking.employee.last_name }}
+          {% else %}
+            <span class="text-muted">Unassigned</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Employee Selection -->
+  <div class="card xpair-card p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h6 class="fw-bold mb-0">Select Employee</h6>
+      <a href="{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
+         class="text-muted small text-decoration-none">Change Type</a>
+    </div>
+
+    {% if employees %}
+    <form method="POST"
+          action="{{ url_for('manager_assign_employee', manager_id=manager.managerID, booking_id=booking.bookingID) }}">
+
+      <div class="row g-3 mb-4" id="employee-cards">
+        {% for emp in employees %}
+        <div class="col-md-6">
+          <input type="radio" name="employeeID" value="{{ emp.employeeID }}"
+                 id="emp-{{ emp.employeeID }}" class="selectable-card-input emp-radio"
+                 {% if booking.assigned_employee == emp.employeeID %}checked{% endif %}>
+          <label for="emp-{{ emp.employeeID }}" class="selectable-card-label">
+            <div class="emp-card p-3 rounded-3 border h-100"
+                 style="border-color: var(--xpair-border); transition: all 0.15s; cursor: pointer;">
+              <div class="d-flex align-items-center gap-3">
+                <div style="width:40px; height:40px; border-radius:50%; background:#F3F4F6;
+                            display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <i class="bi bi-person text-muted"></i>
+                </div>
+                <div>
+                  <div class="fw-bold text-dark">{{ emp.first_name }} {{ emp.last_name }}</div>
+                  <div class="small text-muted">{{ emp.position }} · {{ emp.experience_level | capitalize }}</div>
+                  <div class="small text-muted">{{ emp.email }}</div>
+                </div>
+              </div>
+            </div>
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="d-flex justify-content-end gap-3">
+        <a href="{{ url_for('manager_modify_booking', manager_id=manager.managerID, booking_id=booking.bookingID) }}"
+           class="btn btn-outline-secondary fw-bold px-4">Cancel</a>
+        <button type="submit" class="btn btn-xpair fw-bold px-5">Assign Employee</button>
+      </div>
+    </form>
+
+    {% else %}
+    <div class="text-center text-muted py-4">
+      <i class="bi bi-people mb-2" style="font-size:1.5rem;"></i>
+      <p class="mb-0">No employees found. Add staff accounts first.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<style>
+  .emp-radio:checked + .selectable-card-label .emp-card {
+    border-color: var(--xpair-red) !important;
+    background: rgba(216,34,66,0.04);
+  }
+  .emp-card:hover {
+    border-color: #9CA3AF !important;
+    background: #F9FAFB;
+  }
+</style>
+{% endblock %}
